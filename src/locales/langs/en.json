@@ -263,6 +263,11 @@
       "role": "Role Manage",
       "userCenter": "User Center",
       "menu": "Menu Manage"
+    },
+    "attendance": {
+      "title": "Form Manage",
+      "attendance": "Attendance Manage",
+      "approval": "Approval Manage"
     }
   },
   "table": {

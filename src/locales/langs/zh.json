@@ -263,6 +263,11 @@
       "role": "角色管理",
       "userCenter": "个人中心",
       "menu": "菜单管理"
+    },
+    "attendance": {
+      "title": "考勤管理",
+      "form_application": "表单管理",
+      "approval": "审批管理"
     }
   },
   "table": {
