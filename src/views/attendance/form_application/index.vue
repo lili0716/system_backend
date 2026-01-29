@@ -72,9 +72,8 @@
 </script>
 
 <style lang="sass" scoped>
-  @reference '@styles/core/tailwind.css';
+  @import '@styles/core/tailwind.css'
 
-  .page-title {
-    @apply my-5 text-xl font-medium first:mt-0;
-  }
+  .page-title
+    @apply my-5 text-xl font-medium first:mt-0
 </style>
