@@ -25,12 +25,10 @@ window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
 
 const debounce = (fn: any, delay: any) => {
   let timer: any = null;
-  return function () {
-    let context = this;
-    let args = arguments;
+  return function (...args: any[]) {
     clearTimeout(timer);
-    timer = setTimeout(function () {
-      fn.apply(context, args);
+    timer = setTimeout(() => {
+      fn.apply(this, args);
     }, delay);
   }
 }
