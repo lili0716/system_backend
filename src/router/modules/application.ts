@@ -11,50 +11,13 @@ export const attendanceRoutes: AppRouteRecord = {
   },
   children: [
     {
-      path: 'form_application',
-      name: 'Form_Application',
-      component: '/attendance/form_application',
+      path: 'rule',
+      name: 'AttendanceRule',
+      component: '/attendance/rule',
       meta: {
-        title: 'menus.attendance.form_application',
+        title: 'menus.attendance.rule',
         keepAlive: true,
         roles: ['R_SUPER', 'R_ADMIN']
-      }
-    },
-    {
-      path: 'approval',
-      name: 'Approval',
-      component: '/attendance/approval',
-      meta: {
-        title: 'menus.attendance.approval',
-        keepAlive: true,
-        roles: ['R_SUPER']
-      }
-    },
-    {
-      path: 'user-center',
-      name: 'UserCenter',
-      component: '/system/user-center',
-      meta: {
-        title: 'menus.system.userCenter',
-        isHide: true,
-        keepAlive: true,
-        isHideTab: true
-      }
-    },
-    {
-      path: 'menu',
-      name: 'Menus',
-      component: '/system/menu',
-      meta: {
-        title: 'menus.system.menu',
-        keepAlive: true,
-        roles: ['R_SUPER'],
-        isHide: true,
-        authList: [
-          { title: '新增', authMark: 'add' },
-          { title: '编辑', authMark: 'edit' },
-          { title: '删除', authMark: 'delete' }
-        ]
       }
     }
   ]

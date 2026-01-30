@@ -1,2 +1,2 @@
-import * as system from './system.ts'
+import * as system from './system'
 export { system }

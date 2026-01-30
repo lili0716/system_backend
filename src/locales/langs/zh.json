@@ -161,7 +161,7 @@
       "user": "普通用户"
     },
     "placeholder": {
-      "username": "请输入账号",
+      "username": "请输入工号",
       "password": "请输入密码",
       "slider": "请拖动滑块完成验证"
     },
@@ -267,7 +267,8 @@
     "attendance": {
       "title": "考勤管理",
       "form_application": "表单管理",
-      "approval": "审批管理"
+      "approval": "审批管理",
+      "rule": "规则管理"
     }
   },
   "table": {
@@ -302,7 +303,7 @@
     "checkIn": "上班打卡：",
     "checkOut": "下班打卡：",
     "Replacement": "一键补卡",
-    "Leave":"一键请假",
+    "Leave": "一键请假",
     "noData": "----",
     "today": "今天",
     "previousMonth": "上一月"

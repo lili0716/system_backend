@@ -42,6 +42,16 @@ export const systemRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'dept',
+      name: 'Department',
+      component: '/system/dept',
+      meta: {
+        title: '部门管理',
+        keepAlive: true,
+        roles: ['R_SUPER']
+      }
+    },
+    {
       path: 'menu',
       name: 'Menus',
       component: '/system/menu',

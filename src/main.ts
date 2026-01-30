@@ -11,9 +11,29 @@ import { setupErrorHandle } from './utils/sys/error-handle'
 
 document.addEventListener(
   'touchstart',
-  function () {},
+  function () { },
   { passive: false }
 )
+
+const _ResizeObserver = window.ResizeObserver;
+window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
+  constructor(callback: any) {
+    callback = debounce(callback, 16);
+    super(callback);
+  }
+}
+
+const debounce = (fn: any, delay: any) => {
+  let timer: any = null;
+  return function () {
+    let context = this;
+    let args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      fn.apply(context, args);
+    }, delay);
+  }
+}
 
 const app = createApp(App)
 initStore(app)
