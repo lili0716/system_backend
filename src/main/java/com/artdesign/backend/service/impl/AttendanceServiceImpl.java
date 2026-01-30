@@ -155,11 +155,14 @@ public class AttendanceServiceImpl implements AttendanceService {
             }
 
             attendanceFile = attendanceFileRepository.save(attendanceFile);
+            
+            // 保存文件ID到final变量，用于lambda表达式
+            final Long fileId = attendanceFile.getId();
 
             // 异步解析文件
             new Thread(() -> {
                 try {
-                    parseAttendanceFile(attendanceFile.getId());
+                    parseAttendanceFile(fileId);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -218,7 +221,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                     Date workOutTime = timeFormat.parse(row.getCell(3).getStringCellValue());
 
                     // 查找用户
-                    User user = userRepository.findByUsername(username);
+                    User user = userRepository.findByEmployeeId(username);
                     if (user != null) {
                         // 检查是否已存在该日期的记录
                         AttendanceRecord existingRecord = attendanceRecordRepository.findByUserIdAndRecordDate(user.getId(), recordDate);
@@ -331,6 +334,24 @@ public class AttendanceServiceImpl implements AttendanceService {
         } else {
             return 0; // 正常
         }
+    }
+
+    @Override
+    public List<AttendanceRule> findRulesByCondition(String ruleName, Boolean singleWeekOff) {
+        if (ruleName != null && singleWeekOff != null) {
+            return attendanceRuleRepository.findByRuleNameContainingAndSingleWeekOff(ruleName, singleWeekOff);
+        } else if (ruleName != null) {
+            return attendanceRuleRepository.findByRuleNameContaining(ruleName);
+        } else if (singleWeekOff != null) {
+            return attendanceRuleRepository.findBySingleWeekOff(singleWeekOff);
+        } else {
+            return attendanceRuleRepository.findAll();
+        }
+    }
+
+    @Override
+    public List<AttendanceRule> findRulesByDepartmentId(Long departmentId) {
+        return attendanceRuleRepository.findByDepartmentId(departmentId);
     }
 
 }

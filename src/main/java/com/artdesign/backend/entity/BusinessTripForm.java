@@ -6,7 +6,6 @@ import lombok.Data;
 import jakarta.persistence.*;
 import java.util.Date;
 
-@Data
 @Entity
 @Table(name = "business_trip_form")
 public class BusinessTripForm extends Form {
@@ -31,4 +30,53 @@ public class BusinessTripForm extends Form {
     // 预计费用
     private Double estimatedCost;
 
+    public BusinessTripForm() {}
+
+    public Date getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Date startDate) {
+        this.startDate = startDate;
+    }
+
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Date endDate) {
+        this.endDate = endDate;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
+    }
+
+    public String getTransport() {
+        return transport;
+    }
+
+    public void setTransport(String transport) {
+        this.transport = transport;
+    }
+
+    public Double getEstimatedCost() {
+        return estimatedCost;
+    }
+
+    public void setEstimatedCost(Double estimatedCost) {
+        this.estimatedCost = estimatedCost;
+    }
 }

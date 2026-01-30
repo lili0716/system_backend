@@ -50,6 +50,12 @@ public interface AttendanceService {
     // 获取当前启用的规则
     AttendanceRule getCurrentRule();
 
+    // 按条件查询考勤规则
+    List<AttendanceRule> findRulesByCondition(String ruleName, Boolean singleWeekOff);
+
+    // 按部门查询考勤规则
+    List<AttendanceRule> findRulesByDepartmentId(Long departmentId);
+
     // 计算工时
     Double calculateWorkHours(Date workInTime, Date workOutTime);
 

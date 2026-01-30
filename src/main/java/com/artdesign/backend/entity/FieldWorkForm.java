@@ -6,7 +6,6 @@ import lombok.Data;
 import jakarta.persistence.*;
 import java.util.Date;
 
-@Data
 @Entity
 @Table(name = "field_work_form")
 public class FieldWorkForm extends Form {
@@ -32,4 +31,53 @@ public class FieldWorkForm extends Form {
     // 备注
     private String remark;
 
+    public FieldWorkForm() {}
+
+    public Date getWorkDate() {
+        return workDate;
+    }
+
+    public void setWorkDate(Date workDate) {
+        this.workDate = workDate;
+    }
+
+    public Date getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(Date startTime) {
+        this.startTime = startTime;
+    }
+
+    public Date getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(Date endTime) {
+        this.endTime = endTime;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
 }

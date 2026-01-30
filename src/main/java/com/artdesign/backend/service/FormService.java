@@ -54,4 +54,7 @@ public interface FormService {
 
     LeaveForm findLeaveFormById(Long id);
 
+    // 撤销表单
+    void revokeForm(Long formId);
+
 }

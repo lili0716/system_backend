@@ -6,7 +6,6 @@ import lombok.Data;
 import jakarta.persistence.*;
 import java.util.Date;
 
-@Data
 @Entity
 @Table(name = "leave_form")
 public class LeaveForm extends Form {
@@ -39,4 +38,69 @@ public class LeaveForm extends Form {
     // 备注
     private String remark;
 
+    public LeaveForm() {}
+
+    public Integer getLeaveType() {
+        return leaveType;
+    }
+
+    public void setLeaveType(Integer leaveType) {
+        this.leaveType = leaveType;
+    }
+
+    public Date getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Date startDate) {
+        this.startDate = startDate;
+    }
+
+    public Date getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Date endDate) {
+        this.endDate = endDate;
+    }
+
+    public Date getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(Date startTime) {
+        this.startTime = startTime;
+    }
+
+    public Date getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(Date endTime) {
+        this.endTime = endTime;
+    }
+
+    public Double getLeaveDays() {
+        return leaveDays;
+    }
+
+    public void setLeaveDays(Double leaveDays) {
+        this.leaveDays = leaveDays;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
 }

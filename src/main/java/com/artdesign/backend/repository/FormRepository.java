@@ -30,13 +30,19 @@ public interface FormRepository extends JpaRepository<Form, Long> {
     // 分页查询表单
     @Query(value = "SELECT f FROM Form f WHERE 1=1 " +
             "AND (:applicantId IS NULL OR f.applicant.id = :applicantId) " +
+            "AND (:approverId IS NULL OR f.approver.id = :approverId) " +
             "AND (:status IS NULL OR f.status = :status) " +
             "AND (:type IS NULL OR f.type = :type) " +
+            "AND (cast(:startDate as date) IS NULL OR f.applyTime >= :startDate) " +
+            "AND (cast(:endDate as date) IS NULL OR f.applyTime <= :endDate) " +
             "ORDER BY f.applyTime DESC")
     List<Form> findFormsWithParams(
             @Param("applicantId") Long applicantId,
+            @Param("approverId") Long approverId,
             @Param("status") Integer status,
-            @Param("type") Integer type
+            @Param("type") Integer type,
+            @Param("startDate") java.util.Date startDate,
+            @Param("endDate") java.util.Date endDate
     );
 
 }

@@ -36,14 +36,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User findByUsername(String username) {
-        User user = userRepository.findByUsername(username);
-        if (user == null) {
-            // 创建默认用户
-            createDefaultUsers();
-            user = userRepository.findByUsername(username);
-        }
-        return user;
+    public User findByEmployeeId(String employeeId) {
+        return userRepository.findByEmployeeId(employeeId);
     }
 
     @Override
@@ -85,12 +79,13 @@ public class UserServiceImpl implements UserService {
     
     // 创建默认用户数据
     private void createDefaultUsers() {
-        // 创建默认用户 - 简化版本，不包含角色关联
+        // 创建默认用户 - 简化版本
+        // 创建默认用户 - 简化版本
         User admin = new User();
-        admin.setUsername("admin");
+        admin.setEmployeeId("20950"); 
         admin.setPassword("123456");
-        admin.setEmail("admin@example.com");
-        admin.setNickName("管理员");
+        admin.setEmail("20950@example.com");
+        admin.setNickName("超级管理员");
         admin.setUserPhone("13800138000");
         admin.setUserGender("男");
         admin.setStatus("1");
@@ -102,11 +97,11 @@ public class UserServiceImpl implements UserService {
         userRepository.save(admin);
         
         User user1 = new User();
-        user1.setUsername("user1");
+        user1.setEmployeeId("20952");
         user1.setPassword("123456");
-        user1.setEmail("user1@example.com");
-        user1.setNickName("用户1");
-        user1.setUserPhone("13800138001");
+        user1.setEmail("20952@example.com");
+        user1.setNickName("普通用户");
+        user1.setUserPhone("13800138002");
         user1.setUserGender("女");
         user1.setStatus("1");
         user1.setAvatar("");
@@ -115,6 +110,16 @@ public class UserServiceImpl implements UserService {
         user1.setUpdateBy("system");
         user1.setUpdateTime(new java.util.Date());
         userRepository.save(user1);
+    }
+
+    @Override
+    public Page<User> searchActiveUsers(String keyword, int page, int size) {
+        if (userRepository.findAll().isEmpty()) {
+            createDefaultUsers();
+        }
+        Pageable pageable = PageRequest.of(page - 1, size);
+        String searchKey = "%" + (keyword == null ? "" : keyword) + "%";
+        return userRepository.searchActiveUsers("1", searchKey, pageable);
     }
 
 }

@@ -75,10 +75,9 @@ public class DataInitializer implements CommandLineRunner {
 
             // 创建超级管理员用户
             User superUser = new User();
-            superUser.setUsername("20950");
+            superUser.setEmployeeId("20950");
             superUser.setPassword("123456"); // 实际项目中应该加密密码
             superUser.setEmail("20950@example.com");
-            superUser.setEmployeeId("20950");
             superUser.setNickName("超级管理员");
             superUser.setUserPhone("13800138000");
             superUser.setUserGender("男");
@@ -94,10 +93,9 @@ public class DataInitializer implements CommandLineRunner {
 
             // 创建管理员用户
             User adminUser = new User();
-            adminUser.setUsername("20951");
+            adminUser.setEmployeeId("20951");
             adminUser.setPassword("123456"); // 实际项目中应该加密密码
             adminUser.setEmail("20951@example.com");
-            adminUser.setEmployeeId("20951");
             adminUser.setNickName("管理员");
             adminUser.setUserPhone("13800138001");
             adminUser.setUserGender("女");
@@ -113,10 +111,9 @@ public class DataInitializer implements CommandLineRunner {
 
             // 创建普通用户
             User normalUser = new User();
-            normalUser.setUsername("20952");
+            normalUser.setEmployeeId("20952");
             normalUser.setPassword("123456"); // 实际项目中应该加密密码
             normalUser.setEmail("20952@example.com");
-            normalUser.setEmployeeId("20952");
             normalUser.setNickName("普通用户");
             normalUser.setUserPhone("13800138002");
             normalUser.setUserGender("男");

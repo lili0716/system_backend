@@ -6,7 +6,6 @@ import lombok.Data;
 import jakarta.persistence.*;
 import java.util.Date;
 
-@Data
 @Entity
 @Table(name = "punch_card_form")
 public class PunchCardForm extends Form {
@@ -25,4 +24,48 @@ public class PunchCardForm extends Form {
     // 补打卡原因
     private String reason;
 
+    // 补打卡地点
+    private String location;
+
+    public PunchCardForm() {}
+
+    public Date getPunchDate() {
+        return punchDate;
+    }
+
+    public void setPunchDate(Date punchDate) {
+        this.punchDate = punchDate;
+    }
+
+    public Date getPunchTime() {
+        return punchTime;
+    }
+
+    public void setPunchTime(Date punchTime) {
+        this.punchTime = punchTime;
+    }
+
+    public Integer getPunchType() {
+        return punchType;
+    }
+
+    public void setPunchType(Integer punchType) {
+        this.punchType = punchType;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
 }

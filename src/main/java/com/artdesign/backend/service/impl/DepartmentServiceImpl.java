@@ -49,15 +49,59 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Override
     public Map<String, Object> getDepartmentTree() {
         List<Department> allDepartments = departmentRepository.findAll();
-        Map<Long, Department> deptMap = allDepartments.stream()
-                .collect(Collectors.toMap(Department::getId, dept -> dept));
-
-        // 构建部门树
+        
+        // Transform to nodes map
+        Map<Long, Map<String, Object>> nodeMap = new HashMap<>();
         List<Map<String, Object>> treeNodes = new ArrayList<>();
+        
+        // 1. Create all nodes
         for (Department dept : allDepartments) {
-            if (dept.getParent() == null) {
-                // 根部门
-                Map<String, Object> node = buildDeptNode(dept, deptMap);
+            Map<String, Object> node = new HashMap<>();
+            node.put("id", dept.getId());
+            node.put("name", dept.getName());
+            node.put("code", dept.getCode());
+            node.put("description", dept.getDescription());
+            node.put("sort", dept.getSort());
+            node.put("enabled", dept.getEnabled());
+            node.put("leaderId", dept.getLeaderId());
+            node.put("leaderName", dept.getLeaderName());
+            node.put("children", new ArrayList<>());
+            
+            // Safe parent ID access
+            Long parentId = null;
+            if (dept.getParent() != null) {
+                try {
+                     parentId = dept.getParent().getId();
+                } catch (Exception e) {
+                    // Handle lazy loading or proxy issues
+                }
+            }
+            if (parentId != null) {
+                node.put("parentId", parentId);
+            }
+            
+            nodeMap.put(dept.getId(), node);
+        }
+        
+        // 2. Assemble tree
+        for (Department dept : allDepartments) {
+            Map<String, Object> node = nodeMap.get(dept.getId());
+            Long parentId = null;
+            if (dept.getParent() != null) {
+                 try {
+                     parentId = dept.getParent().getId();
+                 } catch (Exception e) {
+                     // Ignore
+                 }
+            }
+
+            if (parentId != null && nodeMap.containsKey(parentId)) {
+                Map<String, Object> parentNode = nodeMap.get(parentId);
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> children = (List<Map<String, Object>>) parentNode.get("children");
+                children.add(node);
+            } else {
+                // Root node (or orphan)
                 treeNodes.add(node);
             }
         }
@@ -67,27 +111,6 @@ public class DepartmentServiceImpl implements DepartmentService {
         return result;
     }
 
-    private Map<String, Object> buildDeptNode(Department dept, Map<Long, Department> deptMap) {
-        Map<String, Object> node = new HashMap<>();
-        node.put("id", dept.getId());
-        node.put("name", dept.getName());
-        node.put("code", dept.getCode());
-        node.put("description", dept.getDescription());
-        node.put("sort", dept.getSort());
-        node.put("enabled", dept.getEnabled());
-        node.put("leaderId", dept.getLeaderId());
-        node.put("leaderName", dept.getLeaderName());
-
-        // 查找子部门
-        List<Map<String, Object>> children = new ArrayList<>();
-        for (Department childDept : deptMap.values()) {
-            if (childDept.getParent() != null && childDept.getParent().getId().equals(dept.getId())) {
-                Map<String, Object> childNode = buildDeptNode(childDept, deptMap);
-                children.add(childNode);
-            }
-        }
-        node.put("children", children);
-        return node;
-    }
+    // Removed recursive buildDeptNode as it is no longer used
 
 }

@@ -8,7 +8,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import jakarta.persistence.*;
 import java.util.Date;
 
-@Data
 @Entity
 @Table(name = "attendance_record")
 @EntityListeners(AuditingEntityListener.class)
@@ -60,4 +59,101 @@ public class AttendanceRecord {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
+    public AttendanceRecord() {}
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public Date getRecordDate() {
+        return recordDate;
+    }
+
+    public void setRecordDate(Date recordDate) {
+        this.recordDate = recordDate;
+    }
+
+    public Date getWorkInTime() {
+        return workInTime;
+    }
+
+    public void setWorkInTime(Date workInTime) {
+        this.workInTime = workInTime;
+    }
+
+    public Date getWorkOutTime() {
+        return workOutTime;
+    }
+
+    public void setWorkOutTime(Date workOutTime) {
+        this.workOutTime = workOutTime;
+    }
+
+    public Double getActualWorkHours() {
+        return actualWorkHours;
+    }
+
+    public void setActualWorkHours(Double actualWorkHours) {
+        this.actualWorkHours = actualWorkHours;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
+
+    public Integer getLateMinutes() {
+        return lateMinutes;
+    }
+
+    public void setLateMinutes(Integer lateMinutes) {
+        this.lateMinutes = lateMinutes;
+    }
+
+    public Integer getEarlyLeaveMinutes() {
+        return earlyLeaveMinutes;
+    }
+
+    public void setEarlyLeaveMinutes(Integer earlyLeaveMinutes) {
+        this.earlyLeaveMinutes = earlyLeaveMinutes;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public AttendanceFile getAttendanceFile() {
+        return attendanceFile;
+    }
+
+    public void setAttendanceFile(AttendanceFile attendanceFile) {
+        this.attendanceFile = attendanceFile;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
 }

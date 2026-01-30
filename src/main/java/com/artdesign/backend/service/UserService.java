@@ -10,7 +10,7 @@ public interface UserService {
 
     User findById(Long id);
 
-    User findByUsername(String username);
+    User findByEmployeeId(String employeeId);
 
     User save(User user);
 
@@ -18,5 +18,8 @@ public interface UserService {
     
     // 新增方法：分页查询用户列表
     Map<String, Object> getUserList(Map<String, Object> params);
+
+    // 搜索在职员工
+    org.springframework.data.domain.Page<User> searchActiveUsers(String keyword, int page, int size);
 
 }

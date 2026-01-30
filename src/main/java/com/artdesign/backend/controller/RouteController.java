@@ -21,7 +21,37 @@ public class RouteController {
         // 构建菜单列表
         List<Map<String, Object>> routes = new ArrayList<>();
         
-        // 1. 组织架构菜单
+        // 1. 工作台菜单
+        Map<String, Object> dashboardRoute = new HashMap<>();
+        dashboardRoute.put("path", "/dashboard");
+        dashboardRoute.put("name", "Dashboard");
+        dashboardRoute.put("component", "/index/index");
+        
+        Map<String, Object> dashboardMeta = new HashMap<>();
+        dashboardMeta.put("title", "工作台");
+        dashboardMeta.put("icon", "ri:pie-chart-line");
+        dashboardMeta.put("roles", List.of("R_SUPER", "R_ADMIN"));
+        dashboardRoute.put("meta", dashboardMeta);
+        
+        List<Map<String, Object>> dashboardChildren = new ArrayList<>();
+        
+        // 控制台
+        Map<String, Object> consoleRoute = new HashMap<>();
+        consoleRoute.put("path", "console");
+        consoleRoute.put("name", "Console");
+        consoleRoute.put("component", "/dashboard/console");
+        
+        Map<String, Object> consoleMeta = new HashMap<>();
+        consoleMeta.put("title", "控制台");
+        consoleMeta.put("keepAlive", false);
+        consoleMeta.put("fixedTab", true);
+        consoleRoute.put("meta", consoleMeta);
+        dashboardChildren.add(consoleRoute);
+        
+        dashboardRoute.put("children", dashboardChildren);
+        routes.add(dashboardRoute);
+        
+        // 2. 组织架构菜单
         Map<String, Object> organizationRoute = new HashMap<>();
         organizationRoute.put("path", "/organization");
         organizationRoute.put("name", "Organization");
@@ -37,9 +67,9 @@ public class RouteController {
         
         // 部门管理
         Map<String, Object> departmentRoute = new HashMap<>();
-        departmentRoute.put("path", "department");
+        departmentRoute.put("path", "dept");
         departmentRoute.put("name", "Department");
-        departmentRoute.put("component", "/system/department");
+        departmentRoute.put("component", "/system/dept");
         
         Map<String, Object> departmentMeta = new HashMap<>();
         departmentMeta.put("title", "部门管理");
@@ -64,7 +94,7 @@ public class RouteController {
         organizationRoute.put("children", organizationChildren);
         routes.add(organizationRoute);
         
-        // 2. 系统管理菜单
+        // 3. 系统管理菜单
         Map<String, Object> systemRoute = new HashMap<>();
         systemRoute.put("path", "/system");
         systemRoute.put("name", "System");
@@ -134,57 +164,39 @@ public class RouteController {
         
         List<Map<String, Object>> formChildren = new ArrayList<>();
         
-        // 补打卡
-        Map<String, Object> punchCardRoute = new HashMap<>();
-        punchCardRoute.put("path", "punch-card");
-        punchCardRoute.put("name", "PunchCard");
-        punchCardRoute.put("component", "/attendance/form_application");
+        // 表单申请
+        Map<String, Object> applicationRoute = new HashMap<>();
+        applicationRoute.put("path", "application");
+        applicationRoute.put("name", "FormApplication");
+        applicationRoute.put("component", "/form/application");
         
-        Map<String, Object> punchCardMeta = new HashMap<>();
-        punchCardMeta.put("title", "补打卡");
-        punchCardMeta.put("keepAlive", true);
-        punchCardMeta.put("roles", List.of("R_SUPER", "R_ADMIN", "R_USER"));
-        punchCardRoute.put("meta", punchCardMeta);
-        formChildren.add(punchCardRoute);
+        Map<String, Object> applicationMeta = new HashMap<>();
+        applicationMeta.put("title", "表单申请");
+        applicationMeta.put("keepAlive", true);
+        applicationMeta.put("roles", List.of("R_SUPER", "R_ADMIN", "R_USER"));
+        applicationRoute.put("meta", applicationMeta);
+        formChildren.add(applicationRoute);
         
-        // 出差
-        Map<String, Object> businessTripRoute = new HashMap<>();
-        businessTripRoute.put("path", "business-trip");
-        businessTripRoute.put("name", "BusinessTrip");
-        businessTripRoute.put("component", "/attendance/form_application");
+        // 表单审批
+        Map<String, Object> approvalRoute = new HashMap<>();
+        approvalRoute.put("path", "approval");
+        approvalRoute.put("name", "FormApproval");
+        approvalRoute.put("component", "/form/approval");
         
-        Map<String, Object> businessTripMeta = new HashMap<>();
-        businessTripMeta.put("title", "出差");
-        businessTripMeta.put("keepAlive", true);
-        businessTripMeta.put("roles", List.of("R_SUPER", "R_ADMIN", "R_USER"));
-        businessTripRoute.put("meta", businessTripMeta);
-        formChildren.add(businessTripRoute);
-        
-        // 外勤
-        Map<String, Object> fieldWorkRoute = new HashMap<>();
-        fieldWorkRoute.put("path", "field-work");
-        fieldWorkRoute.put("name", "FieldWork");
-        fieldWorkRoute.put("component", "/attendance/form_application");
-        
-        Map<String, Object> fieldWorkMeta = new HashMap<>();
-        fieldWorkMeta.put("title", "外勤");
-        fieldWorkMeta.put("keepAlive", true);
-        fieldWorkMeta.put("roles", List.of("R_SUPER", "R_ADMIN", "R_USER"));
-        fieldWorkRoute.put("meta", fieldWorkMeta);
-        formChildren.add(fieldWorkRoute);
-        
-        // 请假
-        Map<String, Object> leaveRoute = new HashMap<>();
-        leaveRoute.put("path", "leave");
-        leaveRoute.put("name", "Leave");
-        leaveRoute.put("component", "/attendance/form_application");
-        
-        Map<String, Object> leaveMeta = new HashMap<>();
-        leaveMeta.put("title", "请假");
-        leaveMeta.put("keepAlive", true);
-        leaveMeta.put("roles", List.of("R_SUPER", "R_ADMIN", "R_USER"));
-        leaveRoute.put("meta", leaveMeta);
-        formChildren.add(leaveRoute);
+        Map<String, Object> approvalMeta = new HashMap<>();
+        approvalMeta.put("title", "表单审批");
+        approvalMeta.put("keepAlive", true);
+        // Only leaders/admin should see this ideally, but handled by frontend visibility often. 
+        // Backend role check: R_SUPER, R_ADMIN. For dynamic leaders, we might just expose to all and let frontend hide empty lists?
+        // Or if we want strict role control: R_SUPER, R_ADMIN.
+        // User request says: "display form approval function based on whether user is leader".
+        // The current hardcoded mock uses static roles. Let's add R_USER too, so everyone can access (and see empty list if not leader), 
+        // OR better, keep it broad here and let the specific permissions logic handle visibility if we had it.
+        // Given current simple role system, adding all so they can access the page, 
+        // but the page itself will filter data.
+        approvalMeta.put("roles", List.of("R_SUPER", "R_ADMIN", "R_USER")); 
+        approvalRoute.put("meta", approvalMeta);
+        formChildren.add(approvalRoute);
         
         formRoute.put("children", formChildren);
         routes.add(formRoute);

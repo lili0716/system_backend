@@ -35,7 +35,7 @@ public class RoleController {
     // 修改角色
     @PutMapping("/{id}")
     public Role updateRole(@PathVariable Long id, @RequestBody Role role) {
-        role.setId(id);
+        role.setRoleId(id);
         return roleService.save(role);
     }
 

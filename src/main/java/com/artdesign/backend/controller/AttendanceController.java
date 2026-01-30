@@ -1,5 +1,6 @@
 package com.artdesign.backend.controller;
 
+import com.artdesign.backend.common.Result;
 import com.artdesign.backend.entity.AttendanceRecord;
 import com.artdesign.backend.entity.AttendanceFile;
 import com.artdesign.backend.entity.AttendanceRule;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/attendance")
+@RequestMapping("/attendance")
 public class AttendanceController {
 
     @Autowired
@@ -21,102 +22,117 @@ public class AttendanceController {
 
     // 考勤记录相关接口
     @GetMapping("/records")
-    public List<AttendanceRecord> getAllRecords() {
-        return attendanceService.findAllRecords();
+    public Result<List<AttendanceRecord>> getAllRecords() {
+        return Result.success(attendanceService.findAllRecords());
     }
 
     @GetMapping("/records/{id}")
-    public AttendanceRecord getRecordById(@PathVariable Long id) {
-        return attendanceService.findRecordById(id);
+    public Result<AttendanceRecord> getRecordById(@PathVariable Long id) {
+        return Result.success(attendanceService.findRecordById(id));
     }
 
     @PostMapping("/records")
-    public AttendanceRecord createRecord(@RequestBody AttendanceRecord record) {
-        return attendanceService.saveRecord(record);
+    public Result<AttendanceRecord> createRecord(@RequestBody AttendanceRecord record) {
+        return Result.success(attendanceService.saveRecord(record));
     }
 
     @PutMapping("/records/{id}")
-    public AttendanceRecord updateRecord(@PathVariable Long id, @RequestBody AttendanceRecord record) {
+    public Result<AttendanceRecord> updateRecord(@PathVariable Long id, @RequestBody AttendanceRecord record) {
         record.setId(id);
-        return attendanceService.saveRecord(record);
+        return Result.success(attendanceService.saveRecord(record));
     }
 
     @DeleteMapping("/records/{id}")
-    public void deleteRecord(@PathVariable Long id) {
+    public Result<Void> deleteRecord(@PathVariable Long id) {
         attendanceService.deleteRecordById(id);
+        return Result.success();
     }
 
     @PostMapping("/records/list")
-    public Map<String, Object> getRecordList(@RequestBody Map<String, Object> params) {
-        return attendanceService.getRecordList(params);
+    public Result<Map<String, Object>> getRecordList(@RequestBody Map<String, Object> params) {
+        return Result.success(attendanceService.getRecordList(params));
     }
 
     @GetMapping("/records/user/{userId}")
-    public List<AttendanceRecord> getRecordsByUserId(@PathVariable Long userId) {
-        return attendanceService.findRecordsByUserId(userId);
+    public Result<List<AttendanceRecord>> getRecordsByUserId(@PathVariable Long userId) {
+        return Result.success(attendanceService.findRecordsByUserId(userId));
     }
 
     @PostMapping("/records/user/{userId}/date-range")
-    public List<AttendanceRecord> getRecordsByUserIdAndDateRange(
+    public Result<List<AttendanceRecord>> getRecordsByUserIdAndDateRange(
             @PathVariable Long userId, 
             @RequestBody Map<String, Object> params) {
         Date startDate = (Date) params.get("startDate");
         Date endDate = (Date) params.get("endDate");
-        return attendanceService.findRecordsByUserIdAndDateRange(userId, startDate, endDate);
+        return Result.success(attendanceService.findRecordsByUserIdAndDateRange(userId, startDate, endDate));
     }
 
     // 考勤文件相关接口
     @PostMapping("/files/upload")
-    public AttendanceFile uploadFile(@RequestParam("file") MultipartFile file, 
+    public Result<AttendanceFile> uploadFile(@RequestParam("file") MultipartFile file, 
                                      @RequestParam("uploaderId") Long uploaderId) {
-        return attendanceService.uploadFile(file, uploaderId);
+        return Result.success(attendanceService.uploadFile(file, uploaderId));
     }
 
     @GetMapping("/files")
-    public List<AttendanceFile> getAllFiles() {
-        return attendanceService.findAllFiles();
+    public Result<List<AttendanceFile>> getAllFiles() {
+        return Result.success(attendanceService.findAllFiles());
     }
 
     @GetMapping("/files/{id}")
-    public AttendanceFile getFileById(@PathVariable Long id) {
-        return attendanceService.findFileById(id);
+    public Result<AttendanceFile> getFileById(@PathVariable Long id) {
+        return Result.success(attendanceService.findFileById(id));
     }
 
     @PostMapping("/files/{id}/parse")
-    public void parseFile(@PathVariable Long id) {
+    public Result<Void> parseFile(@PathVariable Long id) {
         attendanceService.parseAttendanceFile(id);
+        return Result.success();
     }
 
     // 考勤规则相关接口
     @GetMapping("/rules")
-    public List<AttendanceRule> getAllRules() {
-        return attendanceService.findAllRules();
+    public Result<List<AttendanceRule>> getAllRules() {
+        return Result.success(attendanceService.findAllRules());
     }
 
     @GetMapping("/rules/{id}")
-    public AttendanceRule getRuleById(@PathVariable Long id) {
-        return attendanceService.findRuleById(id);
+    public Result<AttendanceRule> getRuleById(@PathVariable Long id) {
+        return Result.success(attendanceService.findRuleById(id));
     }
 
     @PostMapping("/rules")
-    public AttendanceRule createRule(@RequestBody AttendanceRule rule) {
-        return attendanceService.saveRule(rule);
+    public Result<AttendanceRule> createRule(@RequestBody AttendanceRule rule) {
+        return Result.success(attendanceService.saveRule(rule));
     }
 
     @PutMapping("/rules/{id}")
-    public AttendanceRule updateRule(@PathVariable Long id, @RequestBody AttendanceRule rule) {
+    public Result<AttendanceRule> updateRule(@PathVariable Long id, @RequestBody AttendanceRule rule) {
         rule.setId(id);
-        return attendanceService.saveRule(rule);
+        return Result.success(attendanceService.saveRule(rule));
     }
 
     @DeleteMapping("/rules/{id}")
-    public void deleteRule(@PathVariable Long id) {
+    public Result<Void> deleteRule(@PathVariable Long id) {
         attendanceService.deleteRuleById(id);
+        return Result.success();
     }
 
     @GetMapping("/rules/current")
-    public AttendanceRule getCurrentRule() {
-        return attendanceService.getCurrentRule();
+    public Result<AttendanceRule> getCurrentRule() {
+        return Result.success(attendanceService.getCurrentRule());
+    }
+
+    @PostMapping("/rules/query")
+    public Result<List<AttendanceRule>> queryRules(@RequestBody Map<String, Object> params) {
+        String ruleName = params.get("ruleName") != null ? params.get("ruleName").toString() : null;
+        Boolean singleWeekOff = params.get("singleWeekOff") != null ? Boolean.valueOf(params.get("singleWeekOff").toString()) : null;
+        return Result.success(attendanceService.findRulesByCondition(ruleName, singleWeekOff));
+    }
+
+    @GetMapping("/rules/department/{departmentId}")
+    public Result<List<AttendanceRule>> getRulesByDepartment(@PathVariable Long departmentId) {
+        return Result.success(attendanceService.findRulesByDepartmentId(departmentId));
     }
 
 }
