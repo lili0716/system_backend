@@ -225,18 +225,33 @@ public class UserController {
     }
 
     @PostMapping("/users")
-    public User save(@RequestBody User user) {
-        return userService.save(user);
+    public Map<String, Object> save(@RequestBody User user) {
+        User savedUser = userService.save(user);
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        result.put("data", savedUser);
+        return result;
     }
 
     @PutMapping("/users")
-    public User update(@RequestBody User user) {
-        return userService.save(user);
+    public Map<String, Object> update(@RequestBody User user) {
+        User updatedUser = userService.save(user);
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        result.put("data", updatedUser);
+        return result;
     }
 
     @DeleteMapping("/users/{id}")
-    public void deleteById(@PathVariable Long id) {
+    public Map<String, Object> deleteById(@PathVariable Long id) {
         userService.deleteById(id);
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        result.put("data", null);
+        return result;
     }
 
     @GetMapping("/users/search")
