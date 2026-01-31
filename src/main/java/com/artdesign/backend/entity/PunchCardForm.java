@@ -1,56 +1,32 @@
 package com.artdesign.backend.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.Data;
-
 import jakarta.persistence.*;
-import java.util.Date;
 
+/**
+ * 补打卡表单实体
+ * 关联异常考勤记录，支持多条异常记录一次性申请补卡
+ */
 @Entity
 @Table(name = "punch_card_form")
 public class PunchCardForm extends Form {
 
-    // 补打卡日期
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private Date punchDate;
-
-    // 补打卡时间
-    @JsonFormat(pattern = "HH:mm:ss")
-    private Date punchTime;
-
-    // 补打卡类型：1-上班，2-下班
-    private Integer punchType;
+    // 关联的异常记录ID列表（逗号分隔）
+    @Column(length = 500)
+    private String abnormalRecordIds;
 
     // 补打卡原因
+    @Column(length = 500)
     private String reason;
 
-    // 补打卡地点
-    private String location;
-
-    public PunchCardForm() {}
-
-    public Date getPunchDate() {
-        return punchDate;
+    public PunchCardForm() {
     }
 
-    public void setPunchDate(Date punchDate) {
-        this.punchDate = punchDate;
+    public String getAbnormalRecordIds() {
+        return abnormalRecordIds;
     }
 
-    public Date getPunchTime() {
-        return punchTime;
-    }
-
-    public void setPunchTime(Date punchTime) {
-        this.punchTime = punchTime;
-    }
-
-    public Integer getPunchType() {
-        return punchType;
-    }
-
-    public void setPunchType(Integer punchType) {
-        this.punchType = punchType;
+    public void setAbnormalRecordIds(String abnormalRecordIds) {
+        this.abnormalRecordIds = abnormalRecordIds;
     }
 
     public String getReason() {
@@ -59,13 +35,5 @@ public class PunchCardForm extends Form {
 
     public void setReason(String reason) {
         this.reason = reason;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
     }
 }

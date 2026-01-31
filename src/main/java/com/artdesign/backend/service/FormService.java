@@ -54,6 +54,11 @@ public interface FormService {
 
     LeaveForm findLeaveFormById(Long id);
 
+    // 加班表单
+    com.artdesign.backend.entity.OvertimeForm saveOvertimeForm(com.artdesign.backend.entity.OvertimeForm form);
+
+    com.artdesign.backend.entity.OvertimeForm findOvertimeFormById(Long id);
+
     // 撤销表单
     void revokeForm(Long formId);
 

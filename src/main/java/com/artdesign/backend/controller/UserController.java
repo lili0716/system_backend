@@ -40,10 +40,10 @@ public class UserController {
     @PostMapping("/auth/login")
     public Map<String, Object> login(@RequestBody Map<String, String> params) {
         System.out.println("Login request received: " + params);
-        
+
         String employeeId = params.get("userName"); // Frontend sends 'userName'
         String password = params.get("password");
-        
+
         if (employeeId == null || password == null) {
             Map<String, Object> result = new HashMap<>();
             result.put("code", 400);
@@ -52,7 +52,7 @@ public class UserController {
         }
 
         User user = userService.findByEmployeeId(employeeId);
-        
+
         if (user != null) {
             // Check password
             if (!password.equals(user.getPassword())) {
@@ -61,7 +61,7 @@ public class UserController {
                 result.put("msg", "工号或密码错误");
                 return result;
             }
-            
+
             // Check status
             if (!"1".equals(user.getStatus())) {
                 Map<String, Object> result = new HashMap<>();
@@ -76,14 +76,14 @@ public class UserController {
             data.put("employeeId", user.getEmployeeId());
             data.put("userId", user.getId());
             data.put("roles", List.of("admin")); // Hardcode role for now until RoleService is fully integrated
-            
+
             Map<String, Object> result = new HashMap<>();
             result.put("code", 200);
             result.put("msg", "success");
             result.put("data", data);
             return result;
         } else {
-             Map<String, Object> result = new HashMap<>();
+            Map<String, Object> result = new HashMap<>();
             result.put("code", 401);
             result.put("msg", "该工号不存在");
             return result;
@@ -94,22 +94,22 @@ public class UserController {
     @GetMapping("/user/info")
     public Map<String, Object> getUserInfo(@RequestHeader(value = "Authorization", required = false) String token) {
         System.out.println("Get user info request received. Token: " + token);
-        
+
         // Mock get user from token (in real app, parse token)
         // For now, return a default admin or derive from token if possible
         String employeeId = "20950";
         if (token != null && token.contains("mock-token-")) {
             employeeId = token.replace("mock-token-", "").replace("Bearer ", "");
         }
-        
+
         User user = userService.findByEmployeeId(employeeId);
         if (user == null) {
-             // Fallback
-             user = userService.findByEmployeeId("20950");
+            // Fallback
+            user = userService.findByEmployeeId("20950");
         }
-        
+
         if (user == null) {
-             Map<String, Object> result = new HashMap<>();
+            Map<String, Object> result = new HashMap<>();
             result.put("code", 401);
             result.put("msg", "User not found");
             return result;
@@ -123,37 +123,42 @@ public class UserController {
         data.put("employeeId", user.getEmployeeId());
         data.put("email", user.getEmail());
         data.put("avatar", user.getAvatar());
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
         result.put("msg", "success");
         result.put("data", data);
-        
+
         return result;
     }
 
     // 获取用户列表接口
     @GetMapping("/user/list")
     public Map<String, Object> getUserList(@RequestParam(required = false) Map<String, Object> params) {
-         return userService.getUserList(params);
+        Map<String, Object> data = userService.getUserList(params);
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        result.put("data", data);
+        return result;
     }
-    
+
     // 省略角色列表代码，保持不变...
 
     // 获取部门列表接口
     @GetMapping("/department/list")
     public Map<String, Object> getDepartmentList() {
         System.out.println("Get department list request received");
-        
+
         try {
             // 调用服务获取部门树
             Map<String, Object> departmentTree = departmentService.getDepartmentTree();
-            
+
             Map<String, Object> result = new HashMap<>();
             result.put("code", 200);
             result.put("msg", "success");
             result.put("data", departmentTree);
-            
+
             return result;
         } catch (Exception e) {
             e.printStackTrace();
@@ -168,37 +173,37 @@ public class UserController {
     @GetMapping("/position/list")
     public Map<String, Object> getPositionList() {
         System.out.println("Get position list request received");
-        
+
         try {
             // 调用服务获取职位列表
             List<Map<String, Object>> positions = new ArrayList<>();
-            
+
             Map<String, Object> position1 = new HashMap<>();
             position1.put("id", 1L);
             position1.put("name", "总经理");
             position1.put("code", "GM");
             position1.put("description", "公司总经理");
             positions.add(position1);
-            
+
             Map<String, Object> position2 = new HashMap<>();
             position2.put("id", 2L);
             position2.put("name", "部门经理");
             position2.put("code", "DM");
             position2.put("description", "部门经理");
             positions.add(position2);
-            
+
             Map<String, Object> position3 = new HashMap<>();
             position3.put("id", 3L);
             position3.put("name", "普通员工");
             position3.put("code", "EE");
             position3.put("description", "普通员工");
             positions.add(position3);
-            
+
             Map<String, Object> result = new HashMap<>();
             result.put("code", 200);
             result.put("msg", "success");
             result.put("data", positions);
-            
+
             return result;
         } catch (Exception e) {
             e.printStackTrace();
@@ -236,10 +241,10 @@ public class UserController {
 
     @GetMapping("/users/search")
     public Map<String, Object> searchUsers(@RequestParam(required = false, defaultValue = "") String keyword,
-                                           @RequestParam(defaultValue = "1") int page,
-                                           @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int size) {
         org.springframework.data.domain.Page<User> userPage = userService.searchActiveUsers(keyword, page, size);
-        
+
         Map<String, Object> data = new HashMap<>();
         data.put("records", userPage.getContent());
         data.put("total", userPage.getTotalElements());

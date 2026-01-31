@@ -21,13 +21,19 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private RoleRepository roleRepository;
 
+    @Autowired
+    private com.artdesign.backend.repository.AttendanceRuleRepository attendanceRuleRepository;
+
     @Override
     public void run(String... args) throws Exception {
         // 初始化角色
         initializeRoles();
-        
+
         // 初始化用户
         initializeUsers();
+
+        // 初始化考勤规则
+        initializeAttendanceRules();
     }
 
     // 初始化角色
@@ -131,4 +137,39 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
+    // 初始化考勤规则
+    private void initializeAttendanceRules() {
+        com.artdesign.backend.entity.AttendanceRule defaultRule = attendanceRuleRepository.findByIsDefaultTrue();
+
+        if (defaultRule == null) {
+            try {
+                // 检查是否存在同名规则
+                com.artdesign.backend.entity.AttendanceRule existingRule = attendanceRuleRepository
+                        .findByRuleName("默认考勤规则");
+                if (existingRule != null) {
+                    existingRule.setIsDefault(true);
+                    attendanceRuleRepository.save(existingRule);
+                    System.out.println("已将现有'默认考勤规则'标记为默认");
+                } else {
+                    com.artdesign.backend.entity.AttendanceRule rule = new com.artdesign.backend.entity.AttendanceRule();
+                    rule.setRuleName("默认考勤规则");
+                    rule.setDescription("系统默认考勤规则");
+                    rule.setIsDefault(true);
+                    rule.setEnabled(true);
+
+                    java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm:ss");
+                    rule.setWorkInTime(timeFormat.parse("09:00:00"));
+                    rule.setWorkOutTime(timeFormat.parse("18:00:00"));
+                    rule.setStandardWorkHours(8.0);
+                    rule.setLateThreshold(0);
+                    rule.setEarlyLeaveThreshold(0);
+
+                    attendanceRuleRepository.save(rule);
+                    System.out.println("默认考勤规则初始化完成");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }

@@ -57,6 +57,17 @@ public class AttendanceRule {
     // 早退阈值（分钟）
     private Integer earlyLeaveThreshold;
 
+    // 是否默认规则
+    private Boolean isDefault;
+
+    public Boolean getIsDefault() {
+        return isDefault;
+    }
+
+    public void setIsDefault(Boolean isDefault) {
+        this.isDefault = isDefault;
+    }
+
     // 是否启用
     private Boolean enabled;
 
@@ -79,7 +90,8 @@ public class AttendanceRule {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
 
-    public AttendanceRule() {}
+    public AttendanceRule() {
+    }
 
     public Long getId() {
         return id;

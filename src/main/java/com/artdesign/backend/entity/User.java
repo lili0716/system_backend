@@ -26,7 +26,7 @@ public class User {
     private String email;
     @jakarta.persistence.Column(unique = true)
     private String employeeId; // 工号
-    
+
     // 扩展字段
     private String nickName;
     private String userPhone;
@@ -37,26 +37,40 @@ public class User {
     private Date createTime;
     private String updateBy;
     private Date updateTime;
-    
+
     // 部门和职位关联
     @ManyToOne
     @JoinColumn(name = "department_id")
     private Department department;
-    
+
     @ManyToOne
     @JoinColumn(name = "position_id")
     private Position position;
-    
+
+    // 累计补卡次数
+    private Integer punchCorrectionCount = 0;
+
+    // 考勤规则ID（个人维度）
+    private Long attendanceRuleId;
+
+    // 入职日期
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
+    private Date hireDate;
+
+    // 离职日期
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
+    private Date leaveDate;
+
+    // 备注
+    private String remark;
+
     // 多对多关系
     @ManyToMany
-    @JoinTable(
-        name = "user_roles",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private List<Role> roles;
 
-    public User() {}
+    public User() {
+    }
 
     public Long getId() {
         return id;
@@ -184,5 +198,45 @@ public class User {
 
     public void setRoles(List<Role> roles) {
         this.roles = roles;
+    }
+
+    public Integer getPunchCorrectionCount() {
+        return punchCorrectionCount;
+    }
+
+    public void setPunchCorrectionCount(Integer punchCorrectionCount) {
+        this.punchCorrectionCount = punchCorrectionCount;
+    }
+
+    public Long getAttendanceRuleId() {
+        return attendanceRuleId;
+    }
+
+    public void setAttendanceRuleId(Long attendanceRuleId) {
+        this.attendanceRuleId = attendanceRuleId;
+    }
+
+    public Date getHireDate() {
+        return hireDate;
+    }
+
+    public void setHireDate(Date hireDate) {
+        this.hireDate = hireDate;
+    }
+
+    public Date getLeaveDate() {
+        return leaveDate;
+    }
+
+    public void setLeaveDate(Date leaveDate) {
+        this.leaveDate = leaveDate;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
     }
 }

@@ -46,6 +46,9 @@ public class AttendanceRecord {
     // 早退分钟数
     private Integer earlyLeaveMinutes;
 
+    // 星期几（1-7，1代表周一，7代表周日）
+    private Integer dayOfWeek;
+
     // 备注
     private String remark;
 
@@ -59,7 +62,20 @@ public class AttendanceRecord {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
-    public AttendanceRecord() {}
+    // 是否已补卡修正
+    private Boolean isCorrected = false;
+
+    // 补卡次数
+    private Integer correctionCount = 0;
+
+    // 加班工时
+    private Double overtimeHours = 0.0;
+
+    // 是否加班异常（早退）
+    private Boolean overtimeException = false;
+
+    public AttendanceRecord() {
+    }
 
     public Long getId() {
         return id;
@@ -133,6 +149,14 @@ public class AttendanceRecord {
         this.earlyLeaveMinutes = earlyLeaveMinutes;
     }
 
+    public Integer getDayOfWeek() {
+        return dayOfWeek;
+    }
+
+    public void setDayOfWeek(Integer dayOfWeek) {
+        this.dayOfWeek = dayOfWeek;
+    }
+
     public String getRemark() {
         return remark;
     }
@@ -155,5 +179,37 @@ public class AttendanceRecord {
 
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
+    }
+
+    public Boolean getIsCorrected() {
+        return isCorrected;
+    }
+
+    public void setIsCorrected(Boolean isCorrected) {
+        this.isCorrected = isCorrected;
+    }
+
+    public Integer getCorrectionCount() {
+        return correctionCount;
+    }
+
+    public void setCorrectionCount(Integer correctionCount) {
+        this.correctionCount = correctionCount;
+    }
+
+    public Double getOvertimeHours() {
+        return overtimeHours;
+    }
+
+    public void setOvertimeHours(Double overtimeHours) {
+        this.overtimeHours = overtimeHours;
+    }
+
+    public Boolean getOvertimeException() {
+        return overtimeException;
+    }
+
+    public void setOvertimeException(Boolean overtimeException) {
+        this.overtimeException = overtimeException;
     }
 }

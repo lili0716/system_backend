@@ -12,14 +12,17 @@ import com.artdesign.backend.repository.BusinessTripFormRepository;
 import com.artdesign.backend.repository.FieldWorkFormRepository;
 import com.artdesign.backend.repository.LeaveFormRepository;
 import com.artdesign.backend.repository.UserRepository;
+import com.artdesign.backend.service.AttendanceService;
 import com.artdesign.backend.service.FormService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class FormServiceImpl implements FormService {
@@ -40,10 +43,16 @@ public class FormServiceImpl implements FormService {
     private LeaveFormRepository leaveFormRepository;
 
     @Autowired
+    private com.artdesign.backend.repository.OvertimeFormRepository overtimeFormRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private com.artdesign.backend.repository.DepartmentRepository departmentRepository;
+
+    @Autowired
+    private AttendanceService attendanceService;
 
     @Override
     public List<Form> findAll() {
@@ -108,22 +117,27 @@ public class FormServiceImpl implements FormService {
 
     @Override
     public Map<String, Object> getFormList(Map<String, Object> params) {
-        Long applicantId = params.get("applicantId") != null ? Long.valueOf(params.get("applicantId").toString()) : null;
+        Long applicantId = params.get("applicantId") != null ? Long.valueOf(params.get("applicantId").toString())
+                : null;
         Long approverId = params.get("approverId") != null ? Long.valueOf(params.get("approverId").toString()) : null;
         Integer status = params.get("status") != null ? Integer.valueOf(params.get("status").toString()) : null;
         Integer type = params.get("type") != null ? Integer.valueOf(params.get("type").toString()) : null;
         Integer page = params.get("page") != null ? Integer.valueOf(params.get("page").toString()) : 1;
         Integer pageSize = params.get("pageSize") != null ? Integer.valueOf(params.get("pageSize").toString()) : 10;
-        
+
         Date startDate = null;
         Date endDate = null;
-        // Simple date parsing handling - assuming incoming string is ISO compatible or we handle in Controller/Jackson
-        // For simplicity here, assuming frontend sends valid format handled by Jackson in Controller, 
+        // Simple date parsing handling - assuming incoming string is ISO compatible or
+        // we handle in Controller/Jackson
+        // For simplicity here, assuming frontend sends valid format handled by Jackson
+        // in Controller,
         // but params is Map<String, Object>, so likely Strings.
-        // Skipping complex parsing for now, assuming params might have date objects if handled by caller or null.
+        // Skipping complex parsing for now, assuming params might have date objects if
+        // handled by caller or null.
         // Ideally controller should parse. For now, keep it simple or fix if needed.
 
-        List<Form> forms = formRepository.findFormsWithParams(applicantId, approverId, status, type, startDate, endDate);
+        List<Form> forms = formRepository.findFormsWithParams(applicantId, approverId, status, type, startDate,
+                endDate);
 
         // 计算分页
         int total = forms.size();
@@ -151,6 +165,22 @@ public class FormServiceImpl implements FormService {
                 }
             }
             formRepository.save(form);
+
+            // 补打卡表单审批通过后自动修正异常考勤记录
+            if (status == 1 && form instanceof PunchCardForm) {
+                PunchCardForm punchCardForm = (PunchCardForm) form;
+                String abnormalRecordIds = punchCardForm.getAbnormalRecordIds();
+                if (abnormalRecordIds != null && !abnormalRecordIds.isEmpty()) {
+                    List<Long> ids = Arrays.stream(abnormalRecordIds.split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .map(Long::parseLong)
+                            .collect(Collectors.toList());
+                    if (!ids.isEmpty()) {
+                        attendanceService.correctAbnormalRecords(ids, formId);
+                    }
+                }
+            }
         }
     }
 
@@ -202,6 +232,18 @@ public class FormServiceImpl implements FormService {
         return leaveFormRepository.findById(id).orElse(null);
     }
 
+    @Override
+    public com.artdesign.backend.entity.OvertimeForm saveOvertimeForm(com.artdesign.backend.entity.OvertimeForm form) {
+        form.setType(5); // 设置表单类型为加班
+        determineAndSetApprover(form);
+        return overtimeFormRepository.save(form);
+    }
+
+    @Override
+    public com.artdesign.backend.entity.OvertimeForm findOvertimeFormById(Long id) {
+        return overtimeFormRepository.findById(id).orElse(null);
+    }
+
     private void determineAndSetApprover(Form form) {
         if (form.getStatus() == null) {
             form.setStatus(0); // Default to Pending
@@ -212,31 +254,32 @@ public class FormServiceImpl implements FormService {
             User applicant = form.getApplicant();
             // Refetch applicant to ensure department info is loaded
             if (applicant.getId() != null) {
-                 applicant = userRepository.findById(applicant.getId()).orElse(applicant);
-                 form.setApplicant(applicant);
+                applicant = userRepository.findById(applicant.getId()).orElse(applicant);
+                form.setApplicant(applicant);
             }
 
             if (applicant.getDepartment() != null) {
                 Long leaderId = applicant.getDepartment().getLeaderId();
-                
+
                 // Special Agent: Leave > 1 day -> HR Department Leader
                 if (form instanceof LeaveForm) {
                     LeaveForm leaveForm = (LeaveForm) form;
                     if (leaveForm.getLeaveDays() != null && leaveForm.getLeaveDays() > 1) {
-                         List<com.artdesign.backend.entity.Department> hrDepts = departmentRepository.findByNameContaining("人事");
-                         if (hrDepts.isEmpty()) {
-                             hrDepts = departmentRepository.findByNameContaining("Human Resources");
-                         }
-                         if (hrDepts.isEmpty()) {
-                             hrDepts = departmentRepository.findByNameContaining("HR");
-                         }
-                         
-                         if (!hrDepts.isEmpty()) {
-                             Long hrLeaderId = hrDepts.get(0).getLeaderId();
-                             if (hrLeaderId != null) {
-                                 leaderId = hrLeaderId;
-                             }
-                         }
+                        List<com.artdesign.backend.entity.Department> hrDepts = departmentRepository
+                                .findByNameContaining("人事");
+                        if (hrDepts.isEmpty()) {
+                            hrDepts = departmentRepository.findByNameContaining("Human Resources");
+                        }
+                        if (hrDepts.isEmpty()) {
+                            hrDepts = departmentRepository.findByNameContaining("HR");
+                        }
+
+                        if (!hrDepts.isEmpty()) {
+                            Long hrLeaderId = hrDepts.get(0).getLeaderId();
+                            if (hrLeaderId != null) {
+                                leaderId = hrLeaderId;
+                            }
+                        }
                     }
                 }
 
@@ -247,13 +290,13 @@ public class FormServiceImpl implements FormService {
                     }
                 }
             }
-             
+
             // Fallback: If no approver found, assign to admin
             if (form.getApprover() == null) {
-                 User admin = userRepository.findByEmployeeId("20950");
-                 if (admin != null) {
-                     form.setApprover(admin);
-                 }
+                User admin = userRepository.findByEmployeeId("20950");
+                if (admin != null) {
+                    form.setApprover(admin);
+                }
             }
         }
     }

@@ -92,6 +92,18 @@ public class FormController {
         return Result.success(formService.findLeaveFormById(id));
     }
 
+    // 加班表单相关接口
+    @PostMapping("/overtime")
+    public Result<com.artdesign.backend.entity.OvertimeForm> createOvertimeForm(
+            @RequestBody com.artdesign.backend.entity.OvertimeForm form) {
+        return Result.success(formService.saveOvertimeForm(form));
+    }
+
+    @GetMapping("/overtime/{id}")
+    public Result<com.artdesign.backend.entity.OvertimeForm> getOvertimeFormById(@PathVariable Long id) {
+        return Result.success(formService.findOvertimeFormById(id));
+    }
+
     // 根据申请人查询表单
     @GetMapping("/applicant/{applicantId}")
     public Result<List<Form>> getFormsByApplicantId(@PathVariable Long applicantId) {
