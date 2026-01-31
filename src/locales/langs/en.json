@@ -265,9 +265,12 @@
       "menu": "Menu Manage"
     },
     "attendance": {
-      "title": "Form Manage",
-      "attendance": "Attendance Manage",
-      "approval": "Approval Manage"
+      "title": "Attendance",
+      "upload": "Upload Attendance",
+      "form_application": "Form Management",
+      "approval": "Approval Management",
+      "rule": "Rule Management",
+      "query": "Attendance Query"
     }
   },
   "table": {
@@ -302,7 +305,7 @@
     "checkIn": "Check In : ",
     "checkOut": "Check Out : ",
     "Replacement": "Replacement",
-    "Leave":"Leave",
+    "Leave": "Leave",
     "noData": "----",
     "today": "Today",
     "previousMonth": "Previous Month"

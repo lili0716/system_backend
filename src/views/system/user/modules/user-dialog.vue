@@ -1,34 +1,73 @@
 <template>
   <ElDialog
     v-model="dialogVisible"
-    :title="dialogType === 'add' ? '添加用户' : '编辑用户'"
-    width="30%"
+    :title="dialogType === 'add' ? '新增用户' : '编辑用户'"
+    width="500px"
     align-center
+    @close="handleClose"
   >
-    <ElForm ref="formRef" :model="formData" :rules="rules" label-width="80px">
-      <ElFormItem label="用户名" prop="username">
-        <ElInput v-model="formData.username" placeholder="请输入用户名" />
+    <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
+      <!-- 姓名 -->
+      <ElFormItem label="姓名" prop="nickName">
+        <ElInput v-model="formData.nickName" placeholder="请输入姓名" />
       </ElFormItem>
-      <ElFormItem label="手机号" prop="phone">
-        <ElInput v-model="formData.phone" placeholder="请输入手机号" />
-      </ElFormItem>
-      <ElFormItem label="性别" prop="gender">
-        <ElSelect v-model="formData.gender">
+
+      <!-- 性别 -->
+      <ElFormItem label="性别" prop="userGender">
+        <ElSelect v-model="formData.userGender" placeholder="请选择性别" style="width: 100%">
           <ElOption label="男" value="男" />
           <ElOption label="女" value="女" />
         </ElSelect>
       </ElFormItem>
-      <ElFormItem label="角色" prop="role">
-        <ElSelect v-model="formData.role" multiple>
-          <ElOption
-            v-for="role in roleList"
-            :key="role.roleCode"
-            :value="role.roleCode"
-            :label="role.roleName"
-          />
+
+      <!-- 工号 -->
+      <ElFormItem label="工号" prop="employeeId">
+        <ElInput v-model="formData.employeeId" placeholder="请输入工号" />
+      </ElFormItem>
+
+      <!-- 新增时：入职日期（必填） -->
+      <ElFormItem v-if="dialogType === 'add'" label="入职日期" prop="hireDate">
+        <ElDatePicker
+          v-model="formData.hireDate"
+          type="date"
+          placeholder="请选择入职日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          style="width: 100%"
+        />
+      </ElFormItem>
+
+      <!-- 编辑时：在职状态 -->
+      <ElFormItem v-if="dialogType === 'edit'" label="在职状态" prop="status">
+        <ElSelect v-model="formData.status" placeholder="请选择在职状态" style="width: 100%">
+          <ElOption label="在职" value="1" />
+          <ElOption label="离职" value="2" />
         </ElSelect>
       </ElFormItem>
+
+      <!-- 编辑时：离职日期（当状态为离职时显示，必填） -->
+      <ElFormItem v-if="dialogType === 'edit' && formData.status === '2'" label="离职日期" prop="leaveDate">
+        <ElDatePicker
+          v-model="formData.leaveDate"
+          type="date"
+          placeholder="请选择离职日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          style="width: 100%"
+        />
+      </ElFormItem>
+
+      <!-- 备注 -->
+      <ElFormItem label="备注" prop="remark">
+        <ElInput
+          v-model="formData.remark"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入备注"
+        />
+      </ElFormItem>
     </ElForm>
+
     <template #footer>
       <div class="dialog-footer">
         <ElButton @click="dialogVisible = false">取消</ElButton>
@@ -39,7 +78,6 @@
 </template>
 
 <script setup lang="ts">
-  import { ROLE_LIST_DATA } from '@/mock/temp/formData'
   import type { FormInstance, FormRules } from 'element-plus'
 
   interface Props {
@@ -56,9 +94,6 @@
   const props = defineProps<Props>()
   const emit = defineEmits<Emits>()
 
-  // 角色列表数据
-  const roleList = ref(ROLE_LIST_DATA)
-
   // 对话框显示控制
   const dialogVisible = computed({
     get: () => props.visible,
@@ -72,45 +107,65 @@
 
   // 表单数据
   const formData = reactive({
-    username: '',
-    phone: '',
-    gender: '男',
-    role: [] as string[]
+    id: undefined as number | undefined,
+    nickName: '',
+    userGender: '男',
+    employeeId: '',
+    status: '1',
+    hireDate: '',
+    leaveDate: '',
+    remark: ''
   })
 
   // 表单验证规则
-  const rules: FormRules = {
-    username: [
-      { required: true, message: '请输入用户名', trigger: 'blur' },
+  const rules = computed<FormRules>(() => ({
+    nickName: [
+      { required: true, message: '请输入姓名', trigger: 'blur' },
       { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
     ],
-    phone: [
-      { required: true, message: '请输入手机号', trigger: 'blur' },
-      { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
+    userGender: [{ required: true, message: '请选择性别', trigger: 'change' }],
+    employeeId: [
+      { required: true, message: '请输入工号', trigger: 'blur' }
     ],
-    gender: [{ required: true, message: '请选择性别', trigger: 'blur' }],
-    role: [{ required: true, message: '请选择角色', trigger: 'blur' }]
-  }
+    hireDate: dialogType.value === 'add' 
+      ? [{ required: true, message: '请选择入职日期', trigger: 'change' }]
+      : [],
+    status: dialogType.value === 'edit'
+      ? [{ required: true, message: '请选择在职状态', trigger: 'change' }]
+      : [],
+    leaveDate: dialogType.value === 'edit' && formData.status === '2'
+      ? [{ required: true, message: '请选择离职日期', trigger: 'change' }]
+      : []
+  }))
 
   /**
    * 初始化表单数据
-   * 根据对话框类型（新增/编辑）填充表单
    */
   const initFormData = () => {
     const isEdit = props.type === 'edit' && props.userData
     const row = props.userData
 
     Object.assign(formData, {
-      username: isEdit && row ? row.userName || '' : '',
-      phone: isEdit && row ? row.userPhone || '' : '',
-      gender: isEdit && row ? row.userGender || '男' : '男',
-      role: isEdit && row ? (Array.isArray(row.userRoles) ? row.userRoles : []) : []
+      id: isEdit && row ? row.id : undefined,
+      nickName: isEdit && row ? row.nickName || '' : '',
+      userGender: isEdit && row ? row.userGender || '男' : '男',
+      employeeId: isEdit && row ? row.employeeId || '' : '',
+      status: isEdit && row ? row.status || '1' : '1',
+      hireDate: isEdit && row && row.hireDate ? row.hireDate : '',
+      leaveDate: isEdit && row && row.leaveDate ? row.leaveDate : '',
+      remark: isEdit && row ? row.remark || '' : ''
     })
   }
 
   /**
+   * 关闭弹窗时重置表单
+   */
+  const handleClose = () => {
+    formRef.value?.resetFields()
+  }
+
+  /**
    * 监听对话框状态变化
-   * 当对话框打开时初始化表单数据并清除验证状态
    */
   watch(
     () => [props.visible, props.type, props.userData],
@@ -127,13 +182,14 @@
 
   /**
    * 提交表单
-   * 验证通过后触发提交事件
    */
   const handleSubmit = async () => {
     if (!formRef.value) return
 
     await formRef.value.validate((valid) => {
       if (valid) {
+        // TODO: 调用 API 保存用户数据
+        console.log('提交数据:', formData)
         ElMessage.success(dialogType.value === 'add' ? '添加成功' : '更新成功')
         dialogVisible.value = false
         emit('submit')

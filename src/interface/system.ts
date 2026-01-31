@@ -15,6 +15,7 @@ export interface AttendanceRule {
   departmentId?: number
   departmentName?: string
   enabled: boolean
+  isDefault?: boolean
   createTime?: string
   updateTime?: string
 }

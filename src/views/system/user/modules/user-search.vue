@@ -1,112 +1,82 @@
 <template>
-  <ArtSearchBar
-    ref="searchBarRef"
-    v-model="formData"
-    :items="formItems"
-    :rules="rules"
-    @reset="handleReset"
-    @search="handleSearch"
-  >
-  </ArtSearchBar>
+  <ElCard class="mb-4" shadow="never">
+    <ElForm :model="model" label-width="80px">
+      <ElRow :gutter="20">
+        <ElCol :span="6">
+          <ElFormItem label="姓名">
+            <ElInput v-model="model.nickName" placeholder="请输入姓名" clearable @keyup.enter="handleSearch" />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="6">
+          <ElFormItem label="工号">
+            <ElInput v-model="model.employeeId" placeholder="请输入工号" clearable @keyup.enter="handleSearch" />
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="6">
+          <ElFormItem label="性别">
+            <ElSelect v-model="model.userGender" placeholder="请选择性别" clearable style="width: 100%">
+              <ElOption label="男" value="男" />
+              <ElOption label="女" value="女" />
+            </ElSelect>
+          </ElFormItem>
+        </ElCol>
+        <ElCol :span="6">
+          <ElFormItem label="在职时长">
+            <div class="flex items-center">
+              <ElInputNumber 
+                v-model="model.tenureMin" 
+                :min="0" 
+                :precision="1" 
+                :step="0.5"
+                placeholder="最小"
+                style="width: 100px" 
+                :controls="false"
+              />
+              <span class="mx-2 text-gray-400">-</span>
+              <ElInputNumber 
+                v-model="model.tenureMax" 
+                :min="0" 
+                :precision="1" 
+                :step="0.5"
+                placeholder="最大"
+                style="width: 100px" 
+                :controls="false"
+              />
+              <span class="ml-2 text-gray-500">年</span>
+            </div>
+          </ElFormItem>
+        </ElCol>
+      </ElRow>
+      <div class="flex justify-end">
+        <ElButton @click="handleReset">重置</ElButton>
+        <ElButton type="primary" @click="handleSearch">查询</ElButton>
+      </div>
+    </ElForm>
+  </ElCard>
 </template>
 
 <script setup lang="ts">
-  interface Props {
-    modelValue: Record<string, any>
-  }
-  interface Emits {
-    (e: 'update:modelValue', value: Record<string, any>): void
-    (e: 'search', params: Record<string, any>): void
-    (e: 'reset'): void
-  }
-  const props = defineProps<Props>()
-  const emit = defineEmits<Emits>()
+  import { PropType } from 'vue'
 
-  // 表单数据双向绑定
-  const searchBarRef = ref()
-  const formData = computed({
+  const props = defineProps({
+    modelValue: {
+      type: Object as PropType<any>,
+      default: () => ({})
+    }
+  })
+
+  const emit = defineEmits(['update:modelValue', 'search', 'reset'])
+
+  const model = computed({
     get: () => props.modelValue,
     set: (val) => emit('update:modelValue', val)
   })
 
-  // 校验规则
-  const rules = {
-    // userName: [{ required: true, message: '请输入用户名', trigger: 'blur' }]
+  const handleSearch = () => {
+    emit('search', model.value)
   }
 
-  // 动态 options
-  const statusOptions = ref<{ label: string; value: string; disabled?: boolean }[]>([])
-
-  // 模拟接口返回状态数据
-  function fetchStatusOptions(): Promise<typeof statusOptions.value> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          { label: '在线', value: '1' },
-          { label: '离线', value: '2' },
-          { label: '异常', value: '3' },
-          { label: '注销', value: '4' }
-        ])
-      }, 1000)
-    })
-  }
-
-  onMounted(async () => {
-    statusOptions.value = await fetchStatusOptions()
-  })
-
-  // 表单配置
-  const formItems = computed(() => [
-    {
-      label: '用户名',
-      key: 'userName',
-      type: 'input',
-      placeholder: '请输入用户名',
-      clearable: true
-    },
-    {
-      label: '手机号',
-      key: 'userPhone',
-      type: 'input',
-      props: { placeholder: '请输入手机号', maxlength: '11' }
-    },
-    {
-      label: '邮箱',
-      key: 'userEmail',
-      type: 'input',
-      props: { placeholder: '请输入邮箱' }
-    },
-    {
-      label: '状态',
-      key: 'status',
-      type: 'select',
-      props: {
-        placeholder: '请选择状态',
-        options: statusOptions.value
-      }
-    },
-    {
-      label: '性别',
-      key: 'userGender',
-      type: 'radiogroup',
-      props: {
-        options: [
-          { label: '男', value: '1' },
-          { label: '女', value: '2' }
-        ]
-      }
-    }
-  ])
-
-  // 事件
-  function handleReset() {
-    console.log('重置表单')
+  const handleReset = () => {
     emit('reset')
-  }
-
-  async function handleSearch() {
-    await searchBarRef.value.validate()
-    emit('search', formData.value)
-    console.log('表单数据', formData.value)
   }
 </script>

@@ -11,11 +11,31 @@ export const attendanceRoutes: AppRouteRecord = {
   },
   children: [
     {
+      path: 'upload',
+      name: 'AttendanceUpload',
+      component: '/attendance/upload',
+      meta: {
+        title: 'menus.attendance.upload',
+        keepAlive: true,
+        roles: ['R_SUPER', 'R_ADMIN']
+      }
+    },
+    {
       path: 'rule',
       name: 'AttendanceRule',
       component: '/attendance/rule',
       meta: {
         title: 'menus.attendance.rule',
+        keepAlive: true,
+        roles: ['R_SUPER', 'R_ADMIN']
+      }
+    },
+    {
+      path: 'query',
+      name: 'AttendanceQuery',
+      component: '/attendance/query',
+      meta: {
+        title: 'menus.attendance.query',
         keepAlive: true,
         roles: ['R_SUPER', 'R_ADMIN']
       }

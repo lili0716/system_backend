@@ -146,3 +146,66 @@ export function deleteDepartment(id: number) {
     url: `/api/departments/${id}`
   })
 }
+
+// 考勤文件上传和异常记录管理
+export function uploadAttendanceFile(file: File, uploaderId: number) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('uploaderId', uploaderId.toString())
+  return request.post({
+    url: '/api/attendance/files/upload',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+export function getUncorrectedAbnormalRecords(userId: number) {
+  return request.get({
+    url: `/api/attendance/abnormal-records/uncorrected/${userId}`
+  })
+}
+
+export function getAbnormalRecordsByUserId(userId: number) {
+  return request.get({
+    url: `/api/attendance/abnormal-records/user/${userId}`
+  })
+}
+
+export function exportFailedRecords(failedRecords: any[]) {
+  return request.post({
+    url: '/api/attendance/files/failed-export',
+    data: failedRecords,
+    responseType: 'blob'
+  })
+}
+
+// 考勤查询相关API
+export function queryAttendanceRecords(params: any) {
+  return request.post({
+    url: '/api/attendance/records/query',
+    data: params
+  })
+}
+
+export function getAttendanceRecordDetail(id: number) {
+  return request.get({
+    url: `/api/attendance/records/detail/${id}`
+  })
+}
+
+export function exportAttendanceRecords(params: any) {
+  return request.post({
+    url: '/api/attendance/records/export',
+    data: params,
+    responseType: 'blob'
+  })
+}
+
+export function searchEmployees(keyword: string) {
+  return request.get({
+    url: '/api/attendance/users/search',
+    params: { keyword }
+  })
+}

@@ -1,8 +1,4 @@
 <!-- 用户管理页面 -->
-<!-- art-full-height 自动计算出页面剩余高度 -->
-<!-- art-table-card 一个符合系统样式的 class，同时自动撑满剩余高度 -->
-<!-- 更多 useTable 使用示例请移步至 功能示例 下面的高级表格示例或者查看官方文档 -->
-<!-- useTable 文档：https://www.artd.pro/docs/zh/guide/hooks/use-table.html -->
 <template>
   <div class="user-page art-full-height">
     <!-- 搜索栏 -->
@@ -43,12 +39,11 @@
 
 <script setup lang="ts">
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
-  import { ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
   import { useTable } from '@/hooks/core/useTable'
   import { fetchGetUserList } from '@/api/system-manage'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
-  import { ElTag, ElMessageBox, ElImage } from 'element-plus'
+  import { ElTag, ElMessageBox } from 'element-plus'
   import { DialogType } from '@/types'
 
   defineOptions({ name: 'User' })
@@ -65,19 +60,18 @@
 
   // 搜索表单
   const searchForm = ref({
-    userName: undefined,
+    nickName: undefined,
+    employeeId: undefined,
     userGender: undefined,
-    userPhone: undefined,
-    userEmail: undefined,
-    status: '1'
+    tenureMin: undefined,
+    tenureMax: undefined,
+    status: undefined
   })
 
   // 用户状态配置
   const USER_STATUS_CONFIG = {
-    '1': { type: 'success' as const, text: '在线' },
-    '2': { type: 'info' as const, text: '离线' },
-    '3': { type: 'warning' as const, text: '异常' },
-    '4': { type: 'danger' as const, text: '注销' }
+    '1': { type: 'success' as const, text: '在职' },
+    '2': { type: 'danger' as const, text: '离职' }
   } as const
 
   /**
@@ -90,6 +84,20 @@
         text: '未知'
       }
     )
+  }
+
+  /**
+   * 格式化日期
+   */
+  const formatDate = (date: string | Date | null | undefined) => {
+    if (!date) return '-'
+    const d = new Date(date)
+    if (isNaN(d.getTime())) return '-'
+    // 返回 YYYY-MM-DD
+    const year = d.getFullYear()
+    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+    const day = d.getDate().toString().padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   const {
@@ -113,60 +121,58 @@
         size: 20,
         ...searchForm.value
       },
-      // 自定义分页字段映射，未设置时将使用全局配置 tableConfig.ts 中的 paginationKey
-      // paginationKey: {
-      //   current: 'pageNum',
-      //   size: 'pageSize'
-      // },
       columnsFactory: () => [
-        { type: 'selection' }, // 勾选列
-        { type: 'index', width: 60, label: '序号' }, // 序号
-        {
-          prop: 'userInfo',
-          label: '用户名',
-          width: 280,
-          // visible: false, // 默认是否显示列
-          formatter: (row) => {
-            return h('div', { class: 'user flex-c' }, [
-              h(ElImage, {
-                class: 'size-9.5 rounded-md',
-                src: row.avatar,
-                previewSrcList: [row.avatar],
-                // 图片预览是否插入至 body 元素上，用于解决表格内部图片预览样式异常
-                previewTeleported: true
-              }),
-              h('div', { class: 'ml-2' }, [
-                h('p', { class: 'user-name' }, row.userName),
-                h('p', { class: 'email' }, row.userEmail)
-              ])
-            ])
-          }
-        },
-        {
-          prop: 'userGender',
-          label: '性别',
-          sortable: true,
-          formatter: (row) => row.userGender
-        },
-        { prop: 'userPhone', label: '手机号' },
+        { type: 'selection', align: 'center' },
+        { type: 'index', label: '序号', align: 'center', width: 60 },
+        { prop: 'nickName', label: '姓名', align: 'center' },
+        { prop: 'userGender', label: '性别', align: 'center' },
+        { prop: 'email', label: '邮箱', align: 'center' },
+        { prop: 'employeeId', label: '工号', align: 'center' },
         {
           prop: 'status',
-          label: '状态',
+          label: '在职状态',
+          align: 'center',
           formatter: (row) => {
             const statusConfig = getUserStatusConfig(row.status)
             return h(ElTag, { type: statusConfig.type }, () => statusConfig.text)
           }
         },
         {
+          prop: 'tenure',
+          label: '在职时长',
+          align: 'center',
+          formatter: (row) => row.tenure ? `${row.tenure} 年` : '0.0 年'
+        },
+        {
+          prop: 'hireDate',
+          label: '入职时间',
+          align: 'center',
+          formatter: (row) => formatDate(row.hireDate)
+        },
+        {
+          prop: 'leaveDate',
+          label: '离职时间',
+          align: 'center',
+          formatter: (row) => formatDate(row.leaveDate)
+        },
+        {
           prop: 'createTime',
           label: '创建日期',
-          sortable: true
+          align: 'center',
+          formatter: (row) => formatDate(row.createTime)
+        },
+        {
+          prop: 'updateTime',
+          label: '更新时间',
+          align: 'center',
+          formatter: (row) => formatDate(row.updateTime)
         },
         {
           prop: 'operation',
           label: '操作',
-          width: 120,
-          fixed: 'right', // 固定列
+          align: 'center',
+          width: 120, // 操作列保留宽度防止折行
+          fixed: 'right',
           formatter: (row) =>
             h('div', [
               h(ArtButtonTable, {
@@ -180,35 +186,13 @@
             ])
         }
       ]
-    },
-    // 数据处理
-    transform: {
-      // 数据转换器 - 替换头像
-      dataTransformer: (records) => {
-        // 类型守卫检查
-        if (!Array.isArray(records)) {
-          console.warn('数据转换器: 期望数组类型，实际收到:', typeof records)
-          return []
-        }
-
-        // 使用本地头像替换接口返回的头像
-        return records.map((item, index: number) => {
-          return {
-            ...item,
-            avatar: ACCOUNT_TABLE_DATA[index % ACCOUNT_TABLE_DATA.length].avatar
-          }
-        })
-      }
     }
   })
 
   /**
    * 搜索处理
-   * @param params 参数
    */
   const handleSearch = (params: Record<string, any>) => {
-    console.log(params)
-    // 搜索参数赋值
     Object.assign(searchParams, params)
     getData()
   }
@@ -217,7 +201,6 @@
    * 显示用户弹窗
    */
   const showDialog = (type: DialogType, row?: UserListItem): void => {
-    console.log('打开弹窗:', { type, row })
     dialogType.value = type
     currentUserData.value = row || {}
     nextTick(() => {
@@ -229,13 +212,13 @@
    * 删除用户
    */
   const deleteUser = (row: UserListItem): void => {
-    console.log('删除用户:', row)
-    ElMessageBox.confirm(`确定要注销该用户吗？`, '注销用户', {
+    ElMessageBox.confirm(`确定要删除该用户吗？`, '删除用户', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
     }).then(() => {
-      ElMessage.success('注销成功')
+      ElMessage.success('删除成功')
+      refreshData()
     })
   }
 
@@ -246,6 +229,7 @@
     try {
       dialogVisible.value = false
       currentUserData.value = {}
+      refreshData()
     } catch (error) {
       console.error('提交失败:', error)
     }
@@ -256,6 +240,5 @@
    */
   const handleSelectionChange = (selection: UserListItem[]): void => {
     selectedRows.value = selection
-    console.log('选中行数据:', selectedRows.value)
   }
 </script>
