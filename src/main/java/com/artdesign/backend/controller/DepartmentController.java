@@ -43,6 +43,17 @@ public class DepartmentController {
         return Result.success();
     }
 
+    @PutMapping("/{id}/routes")
+    public Result<Void> updateDepartmentRoutes(@PathVariable Long id, @RequestBody List<Long> routeIds) {
+        departmentService.updateRoutes(id, routeIds);
+        return Result.success();
+    }
+
+    @GetMapping("/{id}/routes")
+    public Result<List<Long>> getDepartmentRoutes(@PathVariable Long id) {
+        return Result.success(departmentService.getRouteIds(id));
+    }
+
     @GetMapping("/tree")
     public Result<Map<String, Object>> getDepartmentTree() {
         return Result.success(departmentService.getDepartmentTree());

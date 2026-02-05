@@ -57,9 +57,19 @@ public class UserServiceImpl implements UserService {
     @Override
     public Map<String, Object> getUserList(Map<String, Object> params) {
         // 获取分页参数
-        int current = params.getOrDefault("current", 1) instanceof Number ? ((Number) params.get("current")).intValue()
-                : 1;
-        int size = params.getOrDefault("size", 10) instanceof Number ? ((Number) params.get("size")).intValue() : 10;
+        // 获取分页参数
+        int current = 1;
+        int size = 10;
+        try {
+            if (params.get("current") != null) {
+                current = Integer.parseInt(params.get("current").toString());
+            }
+            if (params.get("size") != null) {
+                size = Integer.parseInt(params.get("size").toString());
+            }
+        } catch (NumberFormatException e) {
+            // Use defaults
+        }
 
         // 确保有默认用户数据
         if (userRepository.findAll().isEmpty()) {
@@ -145,7 +155,12 @@ public class UserServiceImpl implements UserService {
             userMap.put("hireDate", user.getHireDate());
             userMap.put("leaveDate", user.getLeaveDate());
             userMap.put("updateTime", user.getUpdateTime());
+            userMap.put("updateTime", user.getUpdateTime());
             userMap.put("remark", user.getRemark());
+            userMap.put("salary", user.getSalary());
+            userMap.put("idCard", user.getIdCard());
+            userMap.put("department", user.getDepartment());
+            userMap.put("roles", user.getRoles()); // Also ensure roles are returned for echoing!
 
             // 计算并返回tenure (年，保留1位小数)
             if (user.getHireDate() != null) {

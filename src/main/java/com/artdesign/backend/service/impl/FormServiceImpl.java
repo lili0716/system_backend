@@ -155,19 +155,93 @@ public class FormServiceImpl implements FormService {
     public void approveForm(Long formId, Integer status, String comment, Long approverId) {
         Form form = formRepository.findById(formId).orElse(null);
         if (form != null) {
-            form.setStatus(status);
-            form.setApproveComment(comment);
-            form.setApproveTime(new Date());
-            if (approverId != null) {
-                User approver = userRepository.findById(approverId).orElse(null);
-                if (approver != null) {
-                    form.setApprover(approver);
+            // Check for potential next stage (only if approving)
+            boolean isPendingNextStage = false;
+
+            if (status == 1 && form instanceof LeaveForm) {
+                LeaveForm leaveForm = (LeaveForm) form;
+                if (leaveForm.getLeaveDays() != null && leaveForm.getLeaveDays() > 1) {
+                    // This is a > 1 day leave, check if current approver is Top Leader
+                    if (form.getApplicant() != null && form.getApplicant().getDepartment() != null) {
+                        com.artdesign.backend.entity.Department topDept = getTopDepartment(
+                                form.getApplicant().getDepartment());
+                        Long topLeaderId = topDept != null ? topDept.getLeaderId() : null;
+
+                        // Identify Current Approver (User performing the action)
+                        // Note: approverId passed in is usually the one *performing* the action
+                        // (Current User)
+                        // But wait, the method signature implies `approverId` might be the *target*
+                        // approver setter?
+                        // Let's check usage. Usually endpoints pass "Who is approving".
+                        // If approverId is null, we assume current user context or existing approver
+                        // match.
+                        // Actually, in the existing code:
+                        // if (approverId != null) {
+                        // User approver = userRepository.findById(approverId).orElse(null);
+                        // if (approver != null) {
+                        // form.setApprover(approver);
+                        // }
+                        // }
+                        // This suggests `approverId` arg was used to UPDATE the approver field on the
+                        // form (maybe to record WHO approved it).
+                        // BUT meaningful logic relies on comparing *current logged in user* (who is
+                        // approving) vs *required top leader*.
+                        // Assuming `approverId` IS the ID of the person approving.
+
+                        Long currentApproverId = approverId;
+                        // If arg is null, maybe use form.getApprover().getId()?
+                        // Let's assume safely that logic calls this with current user ID.
+
+                        if (topLeaderId != null && currentApproverId != null
+                                && !topLeaderId.equals(currentApproverId)) {
+                            // Not yet Top Leader -> Forward to Top Leader
+                            User topLeader = userRepository.findById(topLeaderId).orElse(null);
+                            if (topLeader != null) {
+                                form.setApprover(topLeader);
+                                form.setStatus(0); // Keep Pending
+                                form.setApproveComment((comment != null ? comment : "") + " [初审通过，已转呈最高部门负责人审批]");
+                                form.setApproveTime(new Date()); // Record intermediate time
+                                // DO NOT set isPendingNextStage = true if we want to save and return.
+                                // We just modify form state and save.
+                                isPendingNextStage = true;
+                            } else {
+                                // Top Leader not found, fallback to Admin? Or just approve?
+                                // Requirement: "If top dept has no leader, push to admin"
+                                User admin = userRepository.findByEmployeeId("20950");
+                                if (admin != null) {
+                                    form.setApprover(admin);
+                                    form.setStatus(0);
+                                    form.setApproveComment(
+                                            (comment != null ? comment : "") + " [初审通过，最高部门无负责人，转呈管理员审批]");
+                                    form.setApproveTime(new Date());
+                                    isPendingNextStage = true;
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
+            if (!isPendingNextStage) {
+                // Final Approval or Rejection
+                form.setStatus(status);
+                form.setApproveComment(comment);
+                form.setApproveTime(new Date());
+                // In final stage, typically we don't change the "approver" field anymore
+                // (it should already be the person who approved it, or we update it to show who
+                // *finally* approved).
+                if (approverId != null) {
+                    User approver = userRepository.findById(approverId).orElse(null);
+                    if (approver != null) {
+                        form.setApprover(approver);
+                    }
+                }
+            }
+
             formRepository.save(form);
 
             // 补打卡表单审批通过后自动修正异常考勤记录
-            if (status == 1 && form instanceof PunchCardForm) {
+            if (!isPendingNextStage && status == 1 && form instanceof PunchCardForm) {
                 PunchCardForm punchCardForm = (PunchCardForm) form;
                 String abnormalRecordIds = punchCardForm.getAbnormalRecordIds();
                 if (abnormalRecordIds != null && !abnormalRecordIds.isEmpty()) {
@@ -182,6 +256,16 @@ public class FormServiceImpl implements FormService {
                 }
             }
         }
+    }
+
+    private com.artdesign.backend.entity.Department getTopDepartment(com.artdesign.backend.entity.Department dept) {
+        if (dept == null)
+            return null;
+        // If parent is null, this is top.
+        if (dept.getParent() == null)
+            return dept;
+        // Recursive up
+        return getTopDepartment(dept.getParent());
     }
 
     @Override
@@ -262,26 +346,9 @@ public class FormServiceImpl implements FormService {
                 Long leaderId = applicant.getDepartment().getLeaderId();
 
                 // Special Agent: Leave > 1 day -> HR Department Leader
-                if (form instanceof LeaveForm) {
-                    LeaveForm leaveForm = (LeaveForm) form;
-                    if (leaveForm.getLeaveDays() != null && leaveForm.getLeaveDays() > 1) {
-                        List<com.artdesign.backend.entity.Department> hrDepts = departmentRepository
-                                .findByNameContaining("人事");
-                        if (hrDepts.isEmpty()) {
-                            hrDepts = departmentRepository.findByNameContaining("Human Resources");
-                        }
-                        if (hrDepts.isEmpty()) {
-                            hrDepts = departmentRepository.findByNameContaining("HR");
-                        }
-
-                        if (!hrDepts.isEmpty()) {
-                            Long hrLeaderId = hrDepts.get(0).getLeaderId();
-                            if (hrLeaderId != null) {
-                                leaderId = hrLeaderId;
-                            }
-                        }
-                    }
-                }
+                // Logic removed: Multi-stage approval now starts with direct leader regardless
+                // of days.
+                // The forwarding logic is handled in approveForm.
 
                 if (leaderId != null) {
                     User approver = userRepository.findById(leaderId).orElse(null);

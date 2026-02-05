@@ -24,12 +24,13 @@ public class Department {
     private Boolean enabled;
     private Long leaderId;
     private String leaderName;
-    
+
     @ManyToOne
     @JoinColumn(name = "parent_id")
     private Department parent;
 
-    public Department() {}
+    public Department() {
+    }
 
     public Long getId() {
         return id;
@@ -101,5 +102,17 @@ public class Department {
 
     public void setParent(Department parent) {
         this.parent = parent;
+    }
+
+    @jakarta.persistence.ManyToMany
+    @jakarta.persistence.JoinTable(name = "department_routes", joinColumns = @jakarta.persistence.JoinColumn(name = "department_id"), inverseJoinColumns = @jakarta.persistence.JoinColumn(name = "route_id"))
+    private java.util.List<Route> routes;
+
+    public java.util.List<Route> getRoutes() {
+        return routes;
+    }
+
+    public void setRoutes(java.util.List<Route> routes) {
+        this.routes = routes;
     }
 }

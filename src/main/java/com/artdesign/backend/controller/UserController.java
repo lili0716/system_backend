@@ -29,6 +29,9 @@ public class UserController {
     @Autowired
     private RoleService roleService;
 
+    @Autowired
+    private com.artdesign.backend.service.AttendanceService attendanceService;
+
     // 测试接口
     @GetMapping("/test")
     public String test() {
@@ -75,7 +78,10 @@ public class UserController {
             data.put("refreshToken", "mock-refresh-token-" + user.getEmployeeId());
             data.put("employeeId", user.getEmployeeId());
             data.put("userId", user.getId());
-            data.put("roles", List.of("admin")); // Hardcode role for now until RoleService is fully integrated
+            List<String> roleCodes = user.getRoles().stream()
+                    .map(com.artdesign.backend.entity.Role::getRoleCode)
+                    .collect(java.util.stream.Collectors.toList());
+            data.put("roles", roleCodes);
 
             Map<String, Object> result = new HashMap<>();
             result.put("code", 200);
@@ -88,6 +94,17 @@ public class UserController {
             result.put("msg", "该工号不存在");
             return result;
         }
+    }
+
+    // 退出登录接口
+    @PostMapping("/auth/logout")
+    public Map<String, Object> logout(@RequestHeader(value = "Authorization", required = false) String token) {
+        System.out.println("Logout request received. Token: " + token);
+        // Mock logout - in real scenario, invalidate token in Redis
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        return result;
     }
 
     // 获取用户信息接口
@@ -117,12 +134,25 @@ public class UserController {
 
         Map<String, Object> data = new HashMap<>();
         data.put("buttons", new ArrayList<>());
-        data.put("roles", List.of("admin")); // Mock role
+        List<String> roleCodes = user.getRoles().stream()
+                .map(com.artdesign.backend.entity.Role::getRoleCode)
+                .collect(java.util.stream.Collectors.toList());
+        data.put("roles", roleCodes);
         data.put("userId", user.getId());
-        data.put("userName", user.getNickName()); // Frontend expects userName for display, verify what it expects
+        data.put("userName", user.getNickName()); // Frontend expects userName for display
         data.put("employeeId", user.getEmployeeId());
         data.put("email", user.getEmail());
         data.put("avatar", user.getAvatar());
+
+        // 获取并增加考勤规则信息
+        try {
+            com.artdesign.backend.entity.AttendanceRule rule = attendanceService.getEffectiveRule(user);
+            if (rule != null) {
+                data.put("attendanceRule", rule);
+            }
+        } catch (Exception e) {
+            System.out.println("Error fetching attendance rule: " + e.getMessage());
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
@@ -236,11 +266,40 @@ public class UserController {
 
     @PutMapping("/users")
     public Map<String, Object> update(@RequestBody User user) {
+        // Safe update: fetch existing first to preserve password etc if not provided
+        // But for full edit dialog, we assume full data.
+        // For partial updates, we should use specific endpoints or PATCH.
+        // Current frontend sends full data for standard edit.
         User updatedUser = userService.save(user);
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
         result.put("msg", "success");
         result.put("data", updatedUser);
+        return result;
+    }
+
+    @PutMapping("/users/salary")
+    public Map<String, Object> updateSalary(@RequestBody Map<String, Object> params) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            Long id = Long.valueOf(params.get("id").toString());
+            String salary = params.get("salary") != null ? params.get("salary").toString() : "";
+
+            User user = userService.findById(id);
+            if (user != null) {
+                user.setSalary(salary);
+                userService.save(user);
+                result.put("code", 200);
+                result.put("msg", "Salary updated successfully");
+            } else {
+                result.put("code", 404);
+                result.put("msg", "User not found");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("code", 500);
+            result.put("msg", "Failed to update salary: " + e.getMessage());
+        }
         return result;
     }
 

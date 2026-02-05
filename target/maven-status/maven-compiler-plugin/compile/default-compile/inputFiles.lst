@@ -4,6 +4,8 @@ D:\atd_mini\backend\src\main\java\com\artdesign\backend\config\DataInitializer.j
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\AttendanceController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\DepartmentController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\FormController.java
+D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\InitDataController.java
+D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\OptionsController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\OrganizationController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\PermissionController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\RoleController.java

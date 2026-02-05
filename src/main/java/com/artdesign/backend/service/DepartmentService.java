@@ -18,4 +18,7 @@ public interface DepartmentService {
 
     Map<String, Object> getDepartmentTree();
 
+    void updateRoutes(Long deptId, List<Long> routeIds);
+
+    List<Long> getRouteIds(Long deptId);
 }

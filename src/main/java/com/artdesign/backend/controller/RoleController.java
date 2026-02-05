@@ -14,6 +14,9 @@ public class RoleController {
     @Autowired
     private RoleService roleService;
 
+    @Autowired
+    private com.artdesign.backend.service.UserService userService;
+
     // 获取所有角色
     @GetMapping
     public List<Role> getAllRoles() {
@@ -34,20 +37,26 @@ public class RoleController {
 
     // 修改角色
     @PutMapping("/{id}")
-    public Role updateRole(@PathVariable Long id, @RequestBody Role role) {
+    public Role updateRole(@PathVariable Long id, @RequestBody Role role,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        checkPermission(id, token);
         role.setRoleId(id);
         return roleService.save(role);
     }
 
     // 删除角色
     @DeleteMapping("/{id}")
-    public void deleteRole(@PathVariable Long id) {
+    public void deleteRole(@PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        checkPermission(id, token);
         roleService.deleteById(id);
     }
 
     // 为角色分配权限
     @PostMapping("/{roleId}/permissions")
-    public void assignPermissionsToRole(@PathVariable Long roleId, @RequestBody List<Long> permissionIds) {
+    public void assignPermissionsToRole(@PathVariable Long roleId, @RequestBody List<Long> permissionIds,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        checkPermission(roleId, token);
         roleService.assignPermissionsToRole(roleId, permissionIds);
     }
 
@@ -55,6 +64,41 @@ public class RoleController {
     @GetMapping("/{roleId}/permissions")
     public List<Long> getRolePermissions(@PathVariable Long roleId) {
         return roleService.getRolePermissionIds(roleId);
+    }
+
+    private void checkPermission(Long targetRoleId, String token) {
+        // 1. Get Target Role
+        Role targetRole = roleService.findById(targetRoleId);
+        if (targetRole == null)
+            return;
+
+        // If target is NOT superadmin, anyone (who has access to this API) can edit
+        if (!"superadmin".equals(targetRole.getRoleCode())) {
+            return;
+        }
+
+        // 2. Identify Current User
+        String employeeId = null;
+        if (token != null && token.contains("mock-token-")) {
+            employeeId = token.replace("Bearer ", "").replace("mock-token-", "").trim();
+        }
+
+        if (employeeId == null) {
+            throw new RuntimeException("Unauthorized: No token provided");
+        }
+
+        com.artdesign.backend.entity.User currentUser = userService.findByEmployeeId(employeeId);
+        if (currentUser == null) {
+            throw new RuntimeException("Unauthorized: User not found");
+        }
+
+        // 3. Check if Current User is Superadmin
+        boolean isSuperAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> "superadmin".equals(r.getRoleCode()));
+
+        if (!isSuperAdmin) {
+            throw new RuntimeException("Permission Denied: Only superadmin can modify superadmin role.");
+        }
     }
 
 }

@@ -29,6 +29,7 @@ public class RouteMeta {
     private Boolean isAuthButton;
     private String authMark;
     private String parentPath;
+    private Boolean alwaysShow;
 
     @ElementCollection
     @CollectionTable(name = "route_meta_roles", joinColumns = @JoinColumn(name = "meta_id"))
@@ -39,7 +40,8 @@ public class RouteMeta {
     @JoinColumn(name = "meta_id")
     private List<AuthItem> authList;
 
-    public RouteMeta() {}
+    public RouteMeta() {
+    }
 
     public Long getId() {
         return id;
@@ -175,6 +177,14 @@ public class RouteMeta {
 
     public void setParentPath(String parentPath) {
         this.parentPath = parentPath;
+    }
+
+    public Boolean getAlwaysShow() {
+        return alwaysShow;
+    }
+
+    public void setAlwaysShow(Boolean alwaysShow) {
+        this.alwaysShow = alwaysShow;
     }
 
     public List<String> getRoles() {

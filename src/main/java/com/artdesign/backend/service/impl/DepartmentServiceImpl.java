@@ -42,18 +42,19 @@ public class DepartmentServiceImpl implements DepartmentService {
     public List<Department> findByParentId(Long parentId) {
         List<Department> allDepartments = departmentRepository.findAll();
         return allDepartments.stream()
-                .filter(dept -> parentId == null ? dept.getParent() == null : parentId.equals(dept.getParent() != null ? dept.getParent().getId() : null))
+                .filter(dept -> parentId == null ? dept.getParent() == null
+                        : parentId.equals(dept.getParent() != null ? dept.getParent().getId() : null))
                 .collect(Collectors.toList());
     }
 
     @Override
     public Map<String, Object> getDepartmentTree() {
         List<Department> allDepartments = departmentRepository.findAll();
-        
+
         // Transform to nodes map
         Map<Long, Map<String, Object>> nodeMap = new HashMap<>();
         List<Map<String, Object>> treeNodes = new ArrayList<>();
-        
+
         // 1. Create all nodes
         for (Department dept : allDepartments) {
             Map<String, Object> node = new HashMap<>();
@@ -66,12 +67,12 @@ public class DepartmentServiceImpl implements DepartmentService {
             node.put("leaderId", dept.getLeaderId());
             node.put("leaderName", dept.getLeaderName());
             node.put("children", new ArrayList<>());
-            
+
             // Safe parent ID access
             Long parentId = null;
             if (dept.getParent() != null) {
                 try {
-                     parentId = dept.getParent().getId();
+                    parentId = dept.getParent().getId();
                 } catch (Exception e) {
                     // Handle lazy loading or proxy issues
                 }
@@ -79,20 +80,20 @@ public class DepartmentServiceImpl implements DepartmentService {
             if (parentId != null) {
                 node.put("parentId", parentId);
             }
-            
+
             nodeMap.put(dept.getId(), node);
         }
-        
+
         // 2. Assemble tree
         for (Department dept : allDepartments) {
             Map<String, Object> node = nodeMap.get(dept.getId());
             Long parentId = null;
             if (dept.getParent() != null) {
-                 try {
-                     parentId = dept.getParent().getId();
-                 } catch (Exception e) {
-                     // Ignore
-                 }
+                try {
+                    parentId = dept.getParent().getId();
+                } catch (Exception e) {
+                    // Ignore
+                }
             }
 
             if (parentId != null && nodeMap.containsKey(parentId)) {
@@ -113,4 +114,28 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     // Removed recursive buildDeptNode as it is no longer used
 
+    @Autowired
+    private com.artdesign.backend.repository.RouteRepository routeRepository;
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updateRoutes(Long deptId, List<Long> routeIds) {
+        Department dept = findById(deptId);
+        if (dept != null) {
+            List<com.artdesign.backend.entity.Route> routes = routeRepository.findAllById(routeIds);
+            dept.setRoutes(routes);
+            save(dept);
+        }
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<Long> getRouteIds(Long deptId) {
+        Department dept = findById(deptId);
+        if (dept != null && dept.getRoutes() != null) {
+            return dept.getRoutes().stream().map(com.artdesign.backend.entity.Route::getId)
+                    .collect(Collectors.toList());
+        }
+        return new ArrayList<>();
+    }
 }

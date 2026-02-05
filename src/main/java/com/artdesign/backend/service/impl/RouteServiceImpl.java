@@ -21,10 +21,10 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     public List<Route> getRoutes() {
-        List<Route> routes = routeRepository.findAllRootRoutes();
+        List<Route> routes = routeRepository.findByParentIsNull();
         if (routes.isEmpty()) {
             initDefaultRoutes();
-            routes = routeRepository.findAllRootRoutes();
+            routes = routeRepository.findByParentIsNull();
         }
         return routes;
     }
@@ -107,7 +107,8 @@ public class RouteServiceImpl implements RouteService {
         RouteMeta approvalMeta = createRouteMeta("menus.attendance.approval", null, null);
         approvalRoute.setMeta(approvalMeta);
 
-        Route applicationRoute = createRoute("Application", "form_application", "/attendance/form_application", attendanceRoute);
+        Route applicationRoute = createRoute("Application", "form_application", "/attendance/form_application",
+                attendanceRoute);
         RouteMeta applicationMeta = createRouteMeta("menus.attendance.application", null, null);
         applicationRoute.setMeta(applicationMeta);
 

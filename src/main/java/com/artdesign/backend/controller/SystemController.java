@@ -18,14 +18,19 @@ public class SystemController {
     @GetMapping("/role/list")
     public Map<String, Object> getRoleList(@RequestParam(required = false) Map<String, Object> params) {
         System.out.println("Get role list request received: " + params);
-
-        // 从数据库获取真实的角色列表
-        Map<String, Object> roleList = roleService.getRoleList(params != null ? params : new HashMap<>());
-
         Map<String, Object> result = new HashMap<>();
-        result.put("code", 200);
-        result.put("msg", "success");
-        result.put("data", roleList);
+
+        try {
+            // 从数据库获取真实的角色列表
+            Map<String, Object> roleList = roleService.getRoleList(params != null ? params : new HashMap<>());
+            result.put("code", 200);
+            result.put("msg", "success");
+            result.put("data", roleList);
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("code", 500);
+            result.put("msg", "Failed to fetch role list: " + e.getMessage());
+        }
 
         return result;
     }
