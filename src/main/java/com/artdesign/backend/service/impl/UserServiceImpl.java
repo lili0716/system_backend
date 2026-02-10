@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -81,6 +82,11 @@ public class UserServiceImpl implements UserService {
 
         // 构建查询条件
         Specification<User> spec = (root, query, cb) -> {
+            // Apply sorting by nickName (pinyin)
+            if (query.getResultType() != Long.class) {
+                query.orderBy(cb.asc(cb.function("convert_to", byte[].class, root.get("nickName"), cb.literal("GBK"))));
+            }
+
             List<Predicate> predicates = new java.util.ArrayList<>();
 
             // 姓名模糊查询

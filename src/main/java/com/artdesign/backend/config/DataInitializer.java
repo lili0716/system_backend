@@ -1,14 +1,15 @@
 package com.artdesign.backend.config;
 
 import com.artdesign.backend.entity.User;
+import com.artdesign.backend.entity.UserCredential;
 import com.artdesign.backend.entity.Role;
 import com.artdesign.backend.repository.UserRepository;
+import com.artdesign.backend.repository.UserCredentialRepository;
 import com.artdesign.backend.repository.RoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -17,6 +18,9 @@ public class DataInitializer implements CommandLineRunner {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserCredentialRepository userCredentialRepository;
 
     @Autowired
     private RoleRepository roleRepository;
@@ -34,6 +38,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 初始化考勤规则
         initializeAttendanceRules();
+
+        // 修复：确保已有角色的 isAdmin 字段正确
+        fixExistingRolesIsAdmin();
     }
 
     // 初始化角色
@@ -46,6 +53,7 @@ public class DataInitializer implements CommandLineRunner {
             superRole.setRoleCode("R_SUPER");
             superRole.setDescription("拥有系统所有权限");
             superRole.setEnabled(true);
+            superRole.setIsAdmin(true); // 标记为管理员
             roleRepository.save(superRole);
 
             // 创建管理员角色
@@ -54,6 +62,7 @@ public class DataInitializer implements CommandLineRunner {
             adminRole.setRoleCode("R_ADMIN");
             adminRole.setDescription("拥有系统大部分权限");
             adminRole.setEnabled(true);
+            adminRole.setIsAdmin(true); // 标记为管理员
             roleRepository.save(adminRole);
 
             // 创建普通用户角色
@@ -62,6 +71,7 @@ public class DataInitializer implements CommandLineRunner {
             userRole.setRoleCode("R_USER");
             userRole.setDescription("拥有系统基础权限");
             userRole.setEnabled(true);
+            userRole.setIsAdmin(false); // 非管理员
             roleRepository.save(userRole);
 
             System.out.println("角色初始化完成");
@@ -82,7 +92,6 @@ public class DataInitializer implements CommandLineRunner {
             // 创建超级管理员用户
             User superUser = new User();
             superUser.setEmployeeId("20950");
-            superUser.setPassword("123456"); // 实际项目中应该加密密码
             superUser.setEmail("20950@example.com");
             superUser.setNickName("超级管理员");
             superUser.setUserPhone("13800138000");
@@ -96,11 +105,12 @@ public class DataInitializer implements CommandLineRunner {
                 superUser.setRoles(List.of(superRole));
             }
             userRepository.save(superUser);
+            // 密码存入 user_credentials 表
+            saveCredential("20950", "123456");
 
             // 创建管理员用户
             User adminUser = new User();
             adminUser.setEmployeeId("20951");
-            adminUser.setPassword("123456"); // 实际项目中应该加密密码
             adminUser.setEmail("20951@example.com");
             adminUser.setNickName("管理员");
             adminUser.setUserPhone("13800138001");
@@ -114,11 +124,11 @@ public class DataInitializer implements CommandLineRunner {
                 adminUser.setRoles(List.of(adminRole));
             }
             userRepository.save(adminUser);
+            saveCredential("20951", "123456");
 
             // 创建普通用户
             User normalUser = new User();
             normalUser.setEmployeeId("20952");
-            normalUser.setPassword("123456"); // 实际项目中应该加密密码
             normalUser.setEmail("20952@example.com");
             normalUser.setNickName("普通用户");
             normalUser.setUserPhone("13800138002");
@@ -132,8 +142,36 @@ public class DataInitializer implements CommandLineRunner {
                 normalUser.setRoles(List.of(userRole));
             }
             userRepository.save(normalUser);
+            saveCredential("20952", "123456");
 
             System.out.println("用户初始化完成");
+        }
+    }
+
+    // 保存凭证到 user_credentials 表
+    private void saveCredential(String employeeId, String password) {
+        UserCredential existing = userCredentialRepository.findByEmployeeId(employeeId);
+        if (existing == null) {
+            UserCredential credential = new UserCredential(employeeId, password);
+            userCredentialRepository.save(credential);
+        }
+    }
+
+    // 修复已有角色的 isAdmin 字段（升级兼容）
+    private void fixExistingRolesIsAdmin() {
+        List<Role> allRoles = roleRepository.findAll();
+        for (Role role : allRoles) {
+            if (role.getIsAdmin() == null) {
+                // 根据角色编码设置默认值（仅用于首次升级）
+                String code = role.getRoleCode();
+                if ("R_SUPER".equals(code) || "R_ADMIN".equals(code)
+                        || "superadmin".equals(code) || "admin".equals(code)) {
+                    role.setIsAdmin(true);
+                } else {
+                    role.setIsAdmin(false);
+                }
+                roleRepository.save(role);
+            }
         }
     }
 

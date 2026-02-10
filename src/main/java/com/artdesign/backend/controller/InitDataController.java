@@ -45,6 +45,55 @@ public class InitDataController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @GetMapping("/cleanup-roles")
+    @Transactional
+    public java.util.Map<String, Object> cleanupDuplicateRoles() {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        try {
+            // 1. Find the correct R_USER role (lowest ID)
+            Role correctUserRole = roleRepository.findAll().stream()
+                    .filter(r -> "R_USER".equals(r.getRoleCode()))
+                    .findFirst()
+                    .orElse(null);
+
+            // 2. Find the correct R_SUPER role (lowest ID)
+            Role correctSuperRole = roleRepository.findAll().stream()
+                    .filter(r -> "R_SUPER".equals(r.getRoleCode()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (correctUserRole == null || correctSuperRole == null) {
+                result.put("code", 400);
+                result.put("msg", "找不到正确的角色");
+                return result;
+            }
+
+            // 3. Update users with wrong role (USER -> R_USER)
+            jdbcTemplate.update(
+                    "UPDATE user_roles SET role_id = ? WHERE role_id IN (SELECT role_id FROM roles WHERE role_code = 'USER')",
+                    correctUserRole.getRoleId());
+
+            // 4. Update users with duplicate R_SUPER (roleId 6 -> 1)
+            jdbcTemplate.update(
+                    "UPDATE user_roles SET role_id = ? WHERE role_id IN (SELECT role_id FROM roles WHERE role_code = 'R_SUPER' AND role_id != ?)",
+                    correctSuperRole.getRoleId(), correctSuperRole.getRoleId());
+
+            // 5. Delete duplicate roles
+            int deletedUser = jdbcTemplate.update("DELETE FROM roles WHERE role_code = 'USER'");
+            int deletedSuperDup = jdbcTemplate.update("DELETE FROM roles WHERE role_code = 'R_SUPER' AND role_id != ?",
+                    correctSuperRole.getRoleId());
+
+            result.put("code", 200);
+            result.put("msg", "清理完成");
+            result.put("deletedUserRoles", deletedUser);
+            result.put("deletedSuperDuplicates", deletedSuperDup);
+        } catch (Exception e) {
+            result.put("code", 500);
+            result.put("msg", "清理失败: " + e.getMessage());
+        }
+        return result;
+    }
+
     @GetMapping("/org")
     @Transactional
     public void initOrgData(jakarta.servlet.http.HttpServletResponse response) {
@@ -304,22 +353,12 @@ public class InitDataController {
     }
 
     private void initRoutes() {
-        // 1. Dashboard
-        Route dashboard = createRoute("Dashboard", "/dashboard", "/index/index", null);
-        // Parent acts as Layout, no title/icon implies transparent grouping or
-        // effective flat menu if child is promoted
-        // Actually, for "First Level Menu" effect in many admin templates:
-        // Parent: Path /dashboard, Component Layout. Meta: Title NULL/Hidden.
-        // Child: Path index (or console), Component Page. Meta: Title "Workbench".
-        dashboard.setMeta(createMeta(null, null, List.of("R_SUPER", "R_ADMIN")));
-
-        Route console = createRoute("Console", "console", "/dashboard/console", dashboard);
+        // 1. Console (工作台) - Top level route, no parent
+        Route console = createRoute("Console", "/dashboard", "/dashboard/console", null);
         console.setMeta(createMeta("工作台", "ri:pie-chart-line", List.of("R_SUPER", "R_ADMIN")));
         console.getMeta().setFixedTab(true);
         console.getMeta().setKeepAlive(false);
-
-        dashboard.setChildren(new ArrayList<>(List.of(console)));
-        routeRepository.save(dashboard);
+        routeRepository.save(console);
 
         // 2. Personnel
         Route personnel = createRoute("Personnel", "/personnel", "/index/index", null);
@@ -327,15 +366,20 @@ public class InitDataController {
         personnelMeta.setAlwaysShow(true); // Force show as parent
         personnel.setMeta(personnelMeta);
 
-        Route user = createRoute("User", "user", "/system/user", personnel);
-        user.setMeta(createMeta("用户管理", "ri:user-settings-line", List.of("R_SUPER", "R_ADMIN")));
-        user.getMeta().setKeepAlive(true);
+        Route employee = createRoute("Employee", "employee", "/personnel/employee", personnel);
+        employee.setMeta(createMeta("员工管理", null, List.of("R_SUPER", "R_ADMIN")));
+        employee.getMeta().setKeepAlive(true);
 
         Route salary = createRoute("Salary", "salary", "/system/salary", personnel);
-        salary.setMeta(createMeta("薪资管理", "ri:money-cny-circle-line", List.of("R_SUPER", "R_ADMIN")));
+        salary.setMeta(createMeta("薪资管理", null, List.of("R_SUPER", "R_ADMIN")));
         salary.getMeta().setKeepAlive(true);
 
-        personnel.setChildren(new ArrayList<>(List.of(user, salary)));
+        Route salaryStats = createRoute("SalaryStatistics", "salary-statistics", "/system/salary-statistics",
+                personnel);
+        salaryStats.setMeta(createMeta("薪酬统计", null, List.of("R_SUPER", "R_ADMIN")));
+        salaryStats.getMeta().setKeepAlive(true);
+
+        personnel.setChildren(new ArrayList<>(List.of(employee, salary, salaryStats)));
         routeRepository.save(personnel);
 
         // 3. Organization
@@ -357,6 +401,10 @@ public class InitDataController {
         Route sys = createRoute("System", "/system", "/index/index", null);
         sys.setMeta(createMeta("系统管理", "ri:settings-2-line", List.of("R_SUPER", "R_ADMIN")));
 
+        Route user = createRoute("User", "user", "/system/user", sys);
+        user.setMeta(createMeta("用户管理", null, List.of("R_SUPER", "R_ADMIN")));
+        user.getMeta().setKeepAlive(true);
+
         Route role = createRoute("Role", "role", "/system/role", sys);
         role.setMeta(createMeta("角色管理", null, List.of("R_SUPER", "R_ADMIN"))); // Allow ADMIN
         role.getMeta().setKeepAlive(true);
@@ -365,7 +413,7 @@ public class InitDataController {
         menu.setMeta(createMeta("菜单管理", null, List.of("R_SUPER"))); // Only super
         menu.getMeta().setKeepAlive(true);
 
-        sys.setChildren(new ArrayList<>(List.of(role, menu)));
+        sys.setChildren(new ArrayList<>(List.of(user, role, menu)));
         routeRepository.save(sys);
 
         // 5. Form
@@ -420,39 +468,39 @@ public class InitDataController {
         return m;
     }
 
+    @GetMapping("/fix-roles")
+    @Transactional
+    public void fixRoles(jakarta.servlet.http.HttpServletResponse response) {
+        try {
+            // 1. Update Role Codes
+            jdbcTemplate.execute("UPDATE roles SET role_code = 'R_SUPER' WHERE role_code = 'superadmin'");
+            jdbcTemplate.execute("UPDATE roles SET role_code = 'R_ADMIN' WHERE role_code = 'admin'");
+            jdbcTemplate.execute("UPDATE roles SET role_code = 'R_USER' WHERE role_code = 'user'"); // if 'user' exists
+
+            // 2. Ensure R_SUPER has access to all routes
+            // Actually, verify routes
+
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\": 200, \"msg\": \"Roles fixed successfully\"}");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @GetMapping("/routes")
     @Transactional
     public void updateRoutes(jakarta.servlet.http.HttpServletResponse response) {
         try {
-            // Clear existing routes to avoid duplication or conflicts
-            // Note: This might break existing FKs if not careful, but for menu structure
-            // update it's often necessary
-            // A safer approach for production is diffing, but for this task provided
-            // context:
-            // verified we can delete routes as they are re-created.
-
-            // However, we need to handle the self-referencing and FKs.
-            // The simplest way to "Update" is to wipe routes and re-init them,
-            // assuming no other critical data depends on route IDs (like permissions
-            // assigned to specific route IDs).
-            // If permissions are assigned to Route IDs, this is destructive.
-            // But looking at InitDataController, permissions seem role-based in RouteMeta
-            // (ElementCollection likely or just strings).
-
-            // Let's look at initRoutes impl. It uses creating new Route objects.
-
-            // Safe update strategy for this context:
-            // 1. Delete all routes.
+            // ... (deletion logic same as before)
             try {
                 jdbcTemplate.execute("UPDATE routes SET parent_id = NULL");
                 jdbcTemplate.execute("DELETE FROM routes");
-                jdbcTemplate.execute("DELETE FROM route_meta_roles");
+                jdbcTemplate.execute("DELETE FROM route_meta_roles"); // Important!
                 jdbcTemplate.execute("DELETE FROM route_meta");
             } catch (Exception e) {
-                // Ignore if tables empty or slight errors, though explicit checks are better
             }
 
-            initRoutes();
+            initRoutes(); // This uses code below. need to update initRoutes to use R_SUPER
 
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\": 200, \"msg\": \"Menu routes updated successfully\"}");
@@ -495,5 +543,67 @@ public class InitDataController {
 
         workbook.write(response.getOutputStream());
         workbook.close();
+    }
+
+    /**
+     * 初始化运维管理路由
+     */
+    @GetMapping("/ops-routes")
+    @Transactional
+    public java.util.Map<String, Object> initOpsRoutes() {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+
+        // 检查是否已存在
+        boolean exists = routeRepository.findAll().stream()
+                .anyMatch(r -> "Ops".equals(r.getName()));
+        if (exists) {
+            result.put("code", 200);
+            result.put("msg", "运维管理路由已存在，跳过");
+            return result;
+        }
+
+        // 父路由：运维管理
+        Route opsRoute = new Route();
+        opsRoute.setName("Ops");
+        opsRoute.setPath("/ops");
+        opsRoute.setComponent("/index/index");
+        opsRoute.setChildren(new ArrayList<>());
+
+        RouteMeta opsMeta = new RouteMeta();
+        opsMeta.setTitle("menus.ops.title");
+        opsMeta.setIcon("ri:tools-line");
+        opsMeta.setRoles(List.of("R_SUPER", "R_ADMIN"));
+        opsRoute.setMeta(opsMeta);
+
+        // 子路由1：系统日志
+        Route logRoute = new Route();
+        logRoute.setName("SystemLog");
+        logRoute.setPath("system-log");
+        logRoute.setComponent("/ops/system-log");
+        logRoute.setParent(opsRoute);
+        logRoute.setChildren(new ArrayList<>());
+
+        RouteMeta logMeta = new RouteMeta();
+        logMeta.setTitle("menus.ops.systemLog");
+        logRoute.setMeta(logMeta);
+
+        // 子路由2：服务器管理
+        Route serverRoute = new Route();
+        serverRoute.setName("ServerMonitor");
+        serverRoute.setPath("server-monitor");
+        serverRoute.setComponent("/ops/server-monitor");
+        serverRoute.setParent(opsRoute);
+        serverRoute.setChildren(new ArrayList<>());
+
+        RouteMeta serverMeta = new RouteMeta();
+        serverMeta.setTitle("menus.ops.serverMonitor");
+        serverRoute.setMeta(serverMeta);
+
+        opsRoute.setChildren(List.of(logRoute, serverRoute));
+        routeRepository.save(opsRoute);
+
+        result.put("code", 200);
+        result.put("msg", "运维管理路由初始化成功");
+        return result;
     }
 }

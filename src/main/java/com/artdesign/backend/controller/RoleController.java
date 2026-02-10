@@ -2,13 +2,14 @@ package com.artdesign.backend.controller;
 
 import com.artdesign.backend.entity.Role;
 import com.artdesign.backend.service.RoleService;
+import com.artdesign.backend.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/roles")
+@RequestMapping("/roles")
 public class RoleController {
 
     @Autowired
@@ -16,6 +17,9 @@ public class RoleController {
 
     @Autowired
     private com.artdesign.backend.service.UserService userService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     // 获取所有角色
     @GetMapping
@@ -66,25 +70,48 @@ public class RoleController {
         return roleService.getRolePermissionIds(roleId);
     }
 
+    // 获取角色的菜单权限（返回Route Names）
+    @GetMapping("/{roleId}/menu-permissions")
+    public java.util.Map<String, Object> getRoleMenuPermissions(@PathVariable Long roleId) {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        result.put("data", roleService.getRoleMenuPermissions(roleId));
+        return result;
+    }
+
+    // 为角色分配菜单权限
+    @PostMapping("/{roleId}/menu-permissions")
+    public java.util.Map<String, Object> assignMenuPermissionsToRole(@PathVariable Long roleId,
+            @RequestBody List<String> routeNames,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        checkPermission(roleId, token);
+        roleService.assignMenuPermissionsToRole(roleId, routeNames);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "权限分配成功");
+        return result;
+    }
+
     private void checkPermission(Long targetRoleId, String token) {
-        // 1. Get Target Role
+        // 1. 获取目标角色
         Role targetRole = roleService.findById(targetRoleId);
         if (targetRole == null)
             return;
 
-        // If target is NOT superadmin, anyone (who has access to this API) can edit
-        if (!"superadmin".equals(targetRole.getRoleCode())) {
+        // 如果目标角色不是管理员角色，任何有权限的人都可以编辑
+        if (!Boolean.TRUE.equals(targetRole.getIsAdmin())) {
             return;
         }
 
-        // 2. Identify Current User
+        // 2. 从 JWT 中识别当前用户
         String employeeId = null;
-        if (token != null && token.contains("mock-token-")) {
-            employeeId = token.replace("Bearer ", "").replace("mock-token-", "").trim();
+        if (token != null) {
+            employeeId = jwtUtil.getEmployeeId(token);
         }
 
         if (employeeId == null) {
-            throw new RuntimeException("Unauthorized: No token provided");
+            throw new RuntimeException("Unauthorized: Token 无效或已过期");
         }
 
         com.artdesign.backend.entity.User currentUser = userService.findByEmployeeId(employeeId);
@@ -92,12 +119,12 @@ public class RoleController {
             throw new RuntimeException("Unauthorized: User not found");
         }
 
-        // 3. Check if Current User is Superadmin
-        boolean isSuperAdmin = currentUser.getRoles().stream()
-                .anyMatch(r -> "superadmin".equals(r.getRoleCode()));
+        // 3. 检查当前用户是否也拥有管理员角色
+        boolean isCurrentUserAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
 
-        if (!isSuperAdmin) {
-            throw new RuntimeException("Permission Denied: Only superadmin can modify superadmin role.");
+        if (!isCurrentUserAdmin) {
+            throw new RuntimeException("Permission Denied: 只有管理员才能修改管理员角色。");
         }
     }
 

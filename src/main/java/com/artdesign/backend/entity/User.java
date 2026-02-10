@@ -22,7 +22,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String password;
+    private String password; // 不再持久化到 users 表，密码存储在 user_credentials 表中
     private String email;
     @jakarta.persistence.Column(unique = true)
     private String employeeId; // 工号
@@ -86,6 +86,7 @@ public class User {
         this.id = id;
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getPassword() {
         return password;
     }

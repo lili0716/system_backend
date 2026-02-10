@@ -1,5 +1,6 @@
 package com.artdesign.backend.controller;
 
+import com.artdesign.backend.util.JwtUtil;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,15 +18,18 @@ public class RouteController {
     private com.artdesign.backend.service.UserService userService;
     @org.springframework.beans.factory.annotation.Autowired
     private com.artdesign.backend.repository.RouteRepository routeRepository;
+    @org.springframework.beans.factory.annotation.Autowired
+    private JwtUtil jwtUtil;
 
     @GetMapping("/routes")
     @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> getRoutes(jakarta.servlet.http.HttpServletRequest request) {
         String token = request.getHeader("Authorization");
 
+        // 使用 JWT 解析工号
         String employeeId = null;
-        if (token != null && token.contains("mock-token-")) {
-            employeeId = token.replace("Bearer ", "").replace("mock-token-", "").trim();
+        if (token != null) {
+            employeeId = jwtUtil.getEmployeeId(token);
         }
 
         com.artdesign.backend.entity.User user = null;
@@ -35,24 +39,22 @@ public class RouteController {
         List<com.artdesign.backend.entity.Route> routes = new ArrayList<>();
 
         if (user != null) {
-            // 1. Check if user is Super Admin or Admin
+            // 动态判断是否为管理员：查询用户角色的 isAdmin 字段
             boolean isAdmin = user.getRoles().stream()
-                    .anyMatch(r -> "superadmin".equals(r.getRoleCode()) || "admin".equals(r.getRoleCode()));
+                    .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
 
             if (isAdmin) {
-                // Admins see all top-level routes
+                // 管理员看到所有顶级路由
                 routes = routeRepository.findByParentIsNull();
             } else {
-                // Non-admins: check department routes
+                // 非管理员：查看部门路由
                 if (user.getDepartment() != null && user.getDepartment().getRoutes() != null
                         && !user.getDepartment().getRoutes().isEmpty()) {
                     routes = new ArrayList<>(user.getDepartment().getRoutes());
                 }
 
-                // If no routes found (or dept has no routes), assign default routes: Dashboard
-                // + Form
+                // 如果没有路由（或部门没有配置路由），分配默认路由：Dashboard + Form
                 if (routes.isEmpty()) {
-                    // Find Dashboard
                     com.artdesign.backend.entity.Route dashboard = routeRepository.findAll().stream()
                             .filter(r -> "Dashboard".equals(r.getName()))
                             .findFirst().orElse(null);
@@ -60,7 +62,6 @@ public class RouteController {
                         routes.add(dashboard);
                     }
 
-                    // Find Form
                     com.artdesign.backend.entity.Route form = routeRepository.findAll().stream()
                             .filter(r -> "Form".equals(r.getName()))
                             .findFirst().orElse(null);
@@ -68,7 +69,7 @@ public class RouteController {
                         routes.add(form);
                     }
                 } else {
-                    // Ensure Dashboard is always present even if dept has other routes
+                    // 确保 Dashboard 始终存在
                     boolean hasDashboard = routes.stream().anyMatch(r -> "Dashboard".equals(r.getName()));
                     if (!hasDashboard) {
                         com.artdesign.backend.entity.Route dash = routeRepository.findAll().stream()
@@ -79,21 +80,16 @@ public class RouteController {
                     }
                 }
             }
-        } else {
-            // User not found
         }
 
-        // Convert to result map
+        // 转换为结果 map
         List<Map<String, Object>> resultRoutes = convertRoutes(routes);
 
-        // Post-processing: Filter specific menus for non-admins (or everyone based on
-        // business rule)
-        // Rule: "Form Approval" only visible if user is Department Leader
+        // 后处理：非管理员过滤表单审批菜单
         boolean isDeptLeader = false;
         if (user != null && user.getDepartment() != null) {
             Long userId = user.getId();
             Long leaderId = user.getDepartment().getLeaderId();
-            System.out.println("Checking Leader: UserID=" + userId + ", DeptLeaderID=" + leaderId);
             if (leaderId != null) {
                 isDeptLeader = userId.equals(leaderId);
             }
@@ -101,21 +97,13 @@ public class RouteController {
                 String posCode = user.getPosition().getCode();
                 if ("DEPT_MANAGER".equals(posCode) || "GM".equals(posCode)) {
                     isDeptLeader = true;
-                    // System.out.println("User is leader by Position Code: " + posCode);
                 }
             }
         }
-        // System.out.println("Is Dept Leader: " + isDeptLeader);
 
-        // If USER is NOT admin (admins see everything), AND NOT leader, filter Form
-        // Approval
-        // Actually, requirement says "Only department leader sees Form Approval".
-        // Does this apply to Admin too? Usually Admins see all. Let's assume Admin sees
-        // all.
+        // 动态判断管理员
         boolean finalIsAdmin = user != null && user.getRoles().stream()
-                .anyMatch(r -> "superadmin".equals(r.getRoleCode()) || "admin".equals(r.getRoleCode()));
-
-        // System.out.println("Final Is Admin: " + finalIsAdmin);
+                .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
 
         if (!finalIsAdmin) {
             filterFormApproval(resultRoutes, isDeptLeader);
@@ -136,7 +124,7 @@ public class RouteController {
 
         for (com.artdesign.backend.entity.Route r : sourceRoutes) {
             Map<String, Object> map = new HashMap<>();
-            map.put("id", r.getId()); // Add ID
+            map.put("id", r.getId());
             map.put("path", r.getPath());
             map.put("name", r.getName());
             map.put("component", r.getComponent());
@@ -160,6 +148,7 @@ public class RouteController {
         return list;
     }
 
+    @SuppressWarnings("unchecked")
     private void filterFormApproval(List<Map<String, Object>> routes, boolean isLeader) {
         if (routes == null)
             return;
@@ -168,11 +157,9 @@ public class RouteController {
             String name = (String) route.get("name");
             String path = (String) route.get("path");
 
-            // Check if this is the "Form" menu
             if ("Form".equals(name) || "/form".equals(path)) {
                 List<Map<String, Object>> children = (List<Map<String, Object>>) route.get("children");
                 if (children != null) {
-                    // Remove "Approval" if not leader
                     if (!isLeader) {
                         children.removeIf(child -> {
                             String cName = (String) child.get("name");
@@ -184,7 +171,6 @@ public class RouteController {
                 }
             }
 
-            // Recursively check children (though Form is top level, good practice)
             List<Map<String, Object>> children = (List<Map<String, Object>>) route.get("children");
             if (children != null) {
                 filterFormApproval(children, isLeader);

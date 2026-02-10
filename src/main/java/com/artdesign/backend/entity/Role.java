@@ -8,6 +8,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Column;
 import lombok.Data;
 
 import java.util.Date;
@@ -22,20 +23,20 @@ public class Role {
     private Long roleId;
 
     private String roleName;
+
+    @Column(unique = true)
     private String roleCode;
     private String description;
     private Boolean enabled;
+    private Boolean isAdmin = false; // 是否为管理员角色（动态判断，替代硬编码）
     private Date createTime;
 
     @ManyToMany
-    @JoinTable(
-        name = "role_permissions",
-        joinColumns = @JoinColumn(name = "role_id"),
-        inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
+    @JoinTable(name = "role_permissions", joinColumns = @JoinColumn(name = "role_id"), inverseJoinColumns = @JoinColumn(name = "permission_id"))
     private List<Permission> permissions;
 
-    public Role() {}
+    public Role() {
+    }
 
     public Long getRoleId() {
         return roleId;
@@ -91,5 +92,13 @@ public class Role {
 
     public void setPermissions(List<Permission> permissions) {
         this.permissions = permissions;
+    }
+
+    public Boolean getIsAdmin() {
+        return isAdmin;
+    }
+
+    public void setIsAdmin(Boolean isAdmin) {
+        this.isAdmin = isAdmin;
     }
 }

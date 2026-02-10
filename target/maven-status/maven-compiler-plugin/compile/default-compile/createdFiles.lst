@@ -1,6 +1,7 @@
 com\artdesign\backend\service\impl\UserServiceImpl.class
 com\artdesign\backend\entity\PunchCardForm.class
 com\artdesign\backend\entity\AttendanceRule.class
+com\artdesign\backend\service\impl\SalaryStatisticsServiceImpl.class
 com\artdesign\backend\repository\PermissionRepository.class
 com\artdesign\backend\entity\FieldWorkForm.class
 com\artdesign\backend\controller\RouteController.class
@@ -39,6 +40,7 @@ com\artdesign\backend\controller\InitDataController.class
 com\artdesign\backend\controller\TestController.class
 com\artdesign\backend\repository\RouteRepository.class
 com\artdesign\backend\controller\PermissionController.class
+com\artdesign\backend\controller\SalaryStatisticsController.class
 com\artdesign\backend\entity\Department.class
 com\artdesign\backend\repository\RoleRepository.class
 com\artdesign\backend\repository\AttendanceFileRepository.class
@@ -50,6 +52,7 @@ com\artdesign\backend\service\AttendanceService.class
 com\artdesign\backend\dto\AttendanceQueryDTO.class
 com\artdesign\backend\controller\UserController.class
 com\artdesign\backend\common\Result.class
+com\artdesign\backend\dto\SalaryStatisticsDTO.class
 com\artdesign\backend\repository\BusinessTripFormRepository.class
 com\artdesign\backend\service\DepartmentService.class
 com\artdesign\backend\repository\AttendanceRuleRepository.class
@@ -57,6 +60,7 @@ com\artdesign\backend\service\RouteService.class
 com\artdesign\backend\service\impl\RoleServiceImpl.class
 com\artdesign\backend\service\FormService.class
 com\artdesign\backend\entity\Form.class
+com\artdesign\backend\service\SalaryStatisticsService.class
 com\artdesign\backend\repository\AttendanceRecordRepository.class
 com\artdesign\backend\entity\BusinessTripForm.class
 com\artdesign\backend\service\impl\RouteServiceImpl.class

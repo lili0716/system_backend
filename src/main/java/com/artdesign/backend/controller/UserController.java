@@ -1,10 +1,13 @@
 package com.artdesign.backend.controller;
 
 import com.artdesign.backend.entity.User;
+import com.artdesign.backend.entity.UserCredential;
 import com.artdesign.backend.service.UserService;
 import com.artdesign.backend.service.DepartmentService;
 import com.artdesign.backend.service.PositionService;
 import com.artdesign.backend.service.RoleService;
+import com.artdesign.backend.repository.UserCredentialRepository;
+import com.artdesign.backend.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping
@@ -31,6 +35,12 @@ public class UserController {
 
     @Autowired
     private com.artdesign.backend.service.AttendanceService attendanceService;
+
+    @Autowired
+    private UserCredentialRepository userCredentialRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     // 测试接口
     @GetMapping("/test")
@@ -57,8 +67,19 @@ public class UserController {
         User user = userService.findByEmployeeId(employeeId);
 
         if (user != null) {
+            // 从 user_credentials 表查密码
+            UserCredential credential = userCredentialRepository.findByEmployeeId(employeeId);
+            String storedPassword = null;
+
+            if (credential != null) {
+                storedPassword = credential.getPassword();
+            } else {
+                // 兼容：如果 user_credentials 表没有记录，降级读取 users 表旧密码
+                storedPassword = user.getPassword();
+            }
+
             // Check password
-            if (!password.equals(user.getPassword())) {
+            if (storedPassword == null || !password.equals(storedPassword)) {
                 Map<String, Object> result = new HashMap<>();
                 result.put("code", 401);
                 result.put("msg", "工号或密码错误");
@@ -73,14 +94,19 @@ public class UserController {
                 return result;
             }
 
-            Map<String, Object> data = new HashMap<>();
-            data.put("token", "mock-token-" + user.getEmployeeId());
-            data.put("refreshToken", "mock-refresh-token-" + user.getEmployeeId());
-            data.put("employeeId", user.getEmployeeId());
-            data.put("userId", user.getId());
+            // 获取角色编码列表
             List<String> roleCodes = user.getRoles().stream()
                     .map(com.artdesign.backend.entity.Role::getRoleCode)
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
+
+            // 生成 JWT Token（包含 employeeId 和 roles）
+            String token = jwtUtil.generateToken(user.getEmployeeId(), roleCodes);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("token", token);
+            data.put("refreshToken", ""); // 暂时不实现刷新 token
+            data.put("employeeId", user.getEmployeeId());
+            data.put("userId", user.getId());
             data.put("roles", roleCodes);
 
             Map<String, Object> result = new HashMap<>();
@@ -99,8 +125,7 @@ public class UserController {
     // 退出登录接口
     @PostMapping("/auth/logout")
     public Map<String, Object> logout(@RequestHeader(value = "Authorization", required = false) String token) {
-        System.out.println("Logout request received. Token: " + token);
-        // Mock logout - in real scenario, invalidate token in Redis
+        System.out.println("Logout request received. Token: " + (token != null ? "***" : "null"));
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
         result.put("msg", "success");
@@ -110,20 +135,20 @@ public class UserController {
     // 获取用户信息接口
     @GetMapping("/user/info")
     public Map<String, Object> getUserInfo(@RequestHeader(value = "Authorization", required = false) String token) {
-        System.out.println("Get user info request received. Token: " + token);
+        // 从 JWT Token 中解析工号
+        String employeeId = null;
+        if (token != null) {
+            employeeId = jwtUtil.getEmployeeId(token);
+        }
 
-        // Mock get user from token (in real app, parse token)
-        // For now, return a default admin or derive from token if possible
-        String employeeId = "20950";
-        if (token != null && token.contains("mock-token-")) {
-            employeeId = token.replace("mock-token-", "").replace("Bearer ", "");
+        if (employeeId == null) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("code", 401);
+            result.put("msg", "Token 无效或已过期");
+            return result;
         }
 
         User user = userService.findByEmployeeId(employeeId);
-        if (user == null) {
-            // Fallback
-            user = userService.findByEmployeeId("20950");
-        }
 
         if (user == null) {
             Map<String, Object> result = new HashMap<>();
@@ -136,10 +161,10 @@ public class UserController {
         data.put("buttons", new ArrayList<>());
         List<String> roleCodes = user.getRoles().stream()
                 .map(com.artdesign.backend.entity.Role::getRoleCode)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
         data.put("roles", roleCodes);
         data.put("userId", user.getId());
-        data.put("userName", user.getNickName()); // Frontend expects userName for display
+        data.put("userName", user.getNickName());
         data.put("employeeId", user.getEmployeeId());
         data.put("email", user.getEmail());
         data.put("avatar", user.getAvatar());
@@ -173,15 +198,12 @@ public class UserController {
         return result;
     }
 
-    // 省略角色列表代码，保持不变...
-
     // 获取部门列表接口
     @GetMapping("/department/list")
     public Map<String, Object> getDepartmentList() {
         System.out.println("Get department list request received");
 
         try {
-            // 调用服务获取部门树
             Map<String, Object> departmentTree = departmentService.getDepartmentTree();
 
             Map<String, Object> result = new HashMap<>();
@@ -205,7 +227,6 @@ public class UserController {
         System.out.println("Get position list request received");
 
         try {
-            // 调用服务获取职位列表
             List<Map<String, Object>> positions = new ArrayList<>();
 
             Map<String, Object> position1 = new HashMap<>();
@@ -256,7 +277,18 @@ public class UserController {
 
     @PostMapping("/users")
     public Map<String, Object> save(@RequestBody User user) {
+        // 如果前端传了密码，保存到 user_credentials 表
+        String password = user.getPassword();
         User savedUser = userService.save(user);
+        if (password != null && !password.isEmpty() && savedUser.getEmployeeId() != null) {
+            UserCredential credential = userCredentialRepository.findByEmployeeId(savedUser.getEmployeeId());
+            if (credential == null) {
+                credential = new UserCredential(savedUser.getEmployeeId(), password);
+            } else {
+                credential.setPassword(password);
+            }
+            userCredentialRepository.save(credential);
+        }
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
         result.put("msg", "success");
@@ -266,10 +298,6 @@ public class UserController {
 
     @PutMapping("/users")
     public Map<String, Object> update(@RequestBody User user) {
-        // Safe update: fetch existing first to preserve password etc if not provided
-        // But for full edit dialog, we assume full data.
-        // For partial updates, we should use specific endpoints or PATCH.
-        // Current frontend sends full data for standard edit.
         User updatedUser = userService.save(user);
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
@@ -280,23 +308,36 @@ public class UserController {
 
     @PutMapping("/users/salary")
     public Map<String, Object> updateSalary(@RequestBody Map<String, Object> params) {
+        System.out.println("Update salary request: " + params);
         Map<String, Object> result = new HashMap<>();
         try {
-            Long id = Long.valueOf(params.get("id").toString());
+            Object idObj = params.get("id");
+            if (idObj == null) {
+                result.put("code", 400);
+                result.put("msg", "ID is missing");
+                return result;
+            }
+            Long id = Long.valueOf(idObj.toString());
             String salary = params.get("salary") != null ? params.get("salary").toString() : "";
+            System.out.println("Updating salary for user " + id + " to " + salary);
 
             User user = userService.findById(id);
             if (user != null) {
+                System.out.println("User found: " + user.getNickName() + ", old salary: " + user.getSalary());
                 user.setSalary(salary);
-                userService.save(user);
+                User savedUser = userService.save(user);
+                System.out.println("User saved. New salary: " + savedUser.getSalary());
+
                 result.put("code", 200);
                 result.put("msg", "Salary updated successfully");
             } else {
+                System.out.println("User not found with id: " + id);
                 result.put("code", 404);
                 result.put("msg", "User not found");
             }
         } catch (Exception e) {
             e.printStackTrace();
+            System.out.println("Error updating salary: " + e.getMessage());
             result.put("code", 500);
             result.put("msg", "Failed to update salary: " + e.getMessage());
         }

@@ -14,15 +14,20 @@ public interface RoleService {
     Role save(Role role);
 
     void deleteById(Long id);
-    
+
     // 分页查询角色列表
     Map<String, Object> getRoleList(Map<String, Object> params);
 
     // 权限相关方法
     List<Permission> getPermissionsByRoleId(Long roleId);
-    
+
     List<Long> getRolePermissionIds(Long roleId);
-    
+
     void assignPermissionsToRole(Long roleId, List<Long> permissionIds);
+
+    // Menu Permission Management (Direct Route Manipulation)
+    List<String> getRoleMenuPermissions(Long roleId);
+
+    void assignMenuPermissionsToRole(Long roleId, List<String> routeNames);
 
 }
