@@ -384,14 +384,16 @@ public class InitDataController {
 
         // 3. Organization
         Route org = createRoute("Organization", "/organization", "/index/index", null);
-        org.setMeta(createMeta("组织架构", "ri:building-line", List.of("R_SUPER", "R_ADMIN")));
+        RouteMeta orgMeta = createMeta("组织架构", "ri:building-line", List.of("R_SUPER", "R_ADMIN"));
+        orgMeta.setAlwaysShow(true);
+        org.setMeta(orgMeta);
 
         Route dept = createRoute("Department", "dept", "/system/dept", org);
         dept.setMeta(createMeta("部门管理", null, List.of("R_SUPER", "R_ADMIN")));
         dept.getMeta().setKeepAlive(true);
 
         Route pos = createRoute("Position", "position", "/system/position", org);
-        pos.setMeta(createMeta("职位管理", null, List.of("R_SUPER", "R_ADMIN")));
+        pos.setMeta(createMeta("岗位管理", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
         pos.getMeta().setKeepAlive(true);
 
         org.setChildren(new ArrayList<>(List.of(dept, pos)));

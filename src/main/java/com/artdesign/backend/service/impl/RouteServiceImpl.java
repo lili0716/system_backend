@@ -26,7 +26,37 @@ public class RouteServiceImpl implements RouteService {
             initDefaultRoutes();
             routes = routeRepository.findByParentIsNull();
         }
+        sortRoutes(routes);
         return routes;
+    }
+
+    private void sortRoutes(List<Route> routes) {
+        if (routes == null || routes.isEmpty()) {
+            return;
+        }
+        routes.sort((r1, r2) -> {
+            int sort1 = (r1.getMeta() != null && r1.getMeta().getSort() != null) ? r1.getMeta().getSort() : 0;
+            int sort2 = (r2.getMeta() != null && r2.getMeta().getSort() != null) ? r2.getMeta().getSort() : 0;
+            return Integer.compare(sort1, sort2);
+        });
+        for (Route route : routes) {
+            sortRoutes(route.getChildren());
+        }
+    }
+
+    @Override
+    public Route saveRoute(Route route) {
+        return routeRepository.save(route);
+    }
+
+    @Override
+    public void deleteRoute(Long id) {
+        routeRepository.deleteById(id);
+    }
+
+    @Override
+    public Route getRouteById(Long id) {
+        return routeRepository.findById(id).orElse(null);
     }
 
     @Override

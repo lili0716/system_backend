@@ -10,4 +10,9 @@ public interface RouteService {
 
     void initDefaultRoutes();
 
+    Route saveRoute(Route route);
+
+    void deleteRoute(Long id);
+
+    Route getRouteById(Long id);
 }

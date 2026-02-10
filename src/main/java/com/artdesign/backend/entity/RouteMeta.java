@@ -31,6 +31,9 @@ public class RouteMeta {
     private String parentPath;
     private Boolean alwaysShow;
 
+    @Column(name = "sort_order")
+    private Integer sort = 1;
+
     @ElementCollection
     @CollectionTable(name = "route_meta_roles", joinColumns = @JoinColumn(name = "meta_id"))
     @Column(name = "role")
@@ -201,5 +204,13 @@ public class RouteMeta {
 
     public void setAuthList(List<AuthItem> authList) {
         this.authList = authList;
+    }
+
+    public Integer getSort() {
+        return sort;
+    }
+
+    public void setSort(Integer sort) {
+        this.sort = sort;
     }
 }

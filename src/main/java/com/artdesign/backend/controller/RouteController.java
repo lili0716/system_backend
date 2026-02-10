@@ -45,7 +45,24 @@ public class RouteController {
 
             if (isAdmin) {
                 // 管理员看到所有顶级路由
-                routes = routeRepository.findByParentIsNull();
+                try (java.io.PrintWriter out = new java.io.PrintWriter("debug_routes.txt")) {
+                    out.println("User " + employeeId + " is Admin. Fetching all top-level routes.");
+                    routes = routeRepository.findByParentIsNull();
+                    out.println("Found top-level routes: " + routes.size());
+                    for (com.artdesign.backend.entity.Route r : routes) {
+                        out.println("Route: " + r.getName() + ", Path: " + r.getPath() + ", Roles: "
+                                + (r.getMeta() != null ? r.getMeta().getRoles() : "null"));
+                        if (r.getChildren() != null) {
+                            out.println("  Children of " + r.getName() + ": " + r.getChildren().size());
+                            for (com.artdesign.backend.entity.Route c : r.getChildren()) {
+                                out.println("    - " + c.getName() + " (" + c.getPath() + "), Roles: "
+                                        + (c.getMeta() != null ? c.getMeta().getRoles() : "null"));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             } else {
                 // 非管理员：查看部门路由
                 if (user.getDepartment() != null && user.getDepartment().getRoutes() != null
@@ -122,6 +139,13 @@ public class RouteController {
         if (sourceRoutes == null)
             return list;
 
+        // 排序
+        sourceRoutes.sort((r1, r2) -> {
+            int sort1 = (r1.getMeta() != null && r1.getMeta().getSort() != null) ? r1.getMeta().getSort() : 0;
+            int sort2 = (r2.getMeta() != null && r2.getMeta().getSort() != null) ? r2.getMeta().getSort() : 0;
+            return Integer.compare(sort1, sort2);
+        });
+
         for (com.artdesign.backend.entity.Route r : sourceRoutes) {
             Map<String, Object> map = new HashMap<>();
             map.put("id", r.getId());
@@ -136,6 +160,7 @@ public class RouteController {
                 meta.put("keepAlive", r.getMeta().getKeepAlive());
                 meta.put("roles", r.getMeta().getRoles());
                 meta.put("fixedTab", r.getMeta().getFixedTab());
+                meta.put("sort", r.getMeta().getSort()); // 顺便把 sort 也返回给前端，方便前端调试或使用
                 map.put("meta", meta);
             }
 
@@ -178,4 +203,73 @@ public class RouteController {
         }
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/routes")
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, Object> createRoute(
+            @org.springframework.web.bind.annotation.RequestBody com.artdesign.backend.entity.Route route) {
+        // 如果有 parentId，设置 parent
+        if (route.getParent() != null && route.getParent().getId() != null) {
+            com.artdesign.backend.entity.Route parent = routeRepository.findById(route.getParent().getId())
+                    .orElse(null);
+            route.setParent(parent);
+        } else {
+            route.setParent(null);
+        }
+
+        com.artdesign.backend.entity.Route savedRoute = routeRepository.save(route);
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        result.put("data", savedRoute);
+        return result;
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/routes/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, Object> updateRoute(@org.springframework.web.bind.annotation.PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestBody com.artdesign.backend.entity.Route routeDetails) {
+        com.artdesign.backend.entity.Route route = routeRepository.findById(id).orElse(null);
+        if (route != null) {
+            route.setName(routeDetails.getName());
+            route.setPath(routeDetails.getPath());
+            route.setComponent(routeDetails.getComponent());
+            route.setMeta(routeDetails.getMeta());
+
+            // 更新 parent (仅当请求显式包含 parent 时更新，避免丢失原有层级)
+            if (routeDetails.getParent() != null) {
+                if (routeDetails.getParent().getId() != null) {
+                    com.artdesign.backend.entity.Route parent = routeRepository
+                            .findById(routeDetails.getParent().getId()).orElse(null);
+                    route.setParent(parent);
+                } else {
+                    // 如果传了一个空的 parent 对象，视为移动到根节点?
+                    // 或者我们约定 parent: { id: null } 表示移动到根？
+                    // 暂时保留原状，如果仅仅是 metadata update，通常 JSON 不反序列化 parent 字段，则 getParent 为 null
+                    // 如果 explicit null, Jackson sets it to null?
+                    // 这里我们假设如果不传 parent，则不修改 parent。
+                    // 只有当 routeDetails.getParent() 不为 null 才处理。
+                    // 如果想置空 parent (移动到根)，前端需要传 parent: { id: null } ?
+                    // Route 里的 parent 是对象。
+                    // 简单起见：如果 id 不存在，视为根节点。
+                    route.setParent(null);
+                }
+            }
+
+            routeRepository.save(route);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        return result;
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/routes/{id}")
+    public Map<String, Object> deleteRoute(@org.springframework.web.bind.annotation.PathVariable Long id) {
+        routeRepository.deleteById(id);
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 200);
+        result.put("msg", "success");
+        return result;
+    }
 }
