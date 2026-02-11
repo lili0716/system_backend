@@ -1,0 +1,31 @@
+User 20950 is Admin. Fetching all top-level routes.
+Found top-level routes: 7
+Route: Console, Path: /dashboard, Roles: [R_SUPER, R_ADMIN]
+  Children of Console: 0
+Route: Personnel, Path: /personnel, Roles: [R_SUPER, R_ADMIN]
+  Children of Personnel: 3
+    - Employee (employee), Roles: [R_SUPER, R_ADMIN]
+    - Salary (salary), Roles: [R_SUPER, R_ADMIN]
+    - SalaryStatistics (salary-statistics), Roles: [R_SUPER, R_ADMIN]
+Route: System, Path: /system, Roles: [R_SUPER, R_ADMIN]
+  Children of System: 3
+    - User (user), Roles: [R_SUPER, R_ADMIN]
+    - Role (role), Roles: [R_SUPER, R_ADMIN]
+    - Menus (menu), Roles: [R_SUPER]
+Route: Organization, Path: /organization, Roles: [R_SUPER, R_ADMIN, R_USER]
+  Children of Organization: 2
+    - Department (dept), Roles: [R_SUPER, R_ADMIN]
+    - Position (position), Roles: [R_SUPER, R_ADMIN, R_USER]
+Route: Attendance, Path: /attendance, Roles: [R_SUPER, R_ADMIN]
+  Children of Attendance: 3
+    - AttendanceUpload (upload), Roles: [R_SUPER, R_ADMIN]
+    - AttendanceQuery (query), Roles: [R_SUPER, R_ADMIN, R_USER]
+    - AttendanceRule (rule), Roles: [R_SUPER, R_ADMIN]
+Route: Form, Path: /form, Roles: [R_SUPER, R_ADMIN, R_USER]
+  Children of Form: 2
+    - FormApplication (application), Roles: [R_SUPER, R_ADMIN, R_USER]
+    - FormApproval (approval), Roles: [R_SUPER, R_ADMIN, R_USER]
+Route: Ops, Path: /ops, Roles: [R_SUPER, R_ADMIN]
+  Children of Ops: 2
+    - ServerOps (server), Roles: [R_SUPER, R_ADMIN]
+    - SystemLogs (logs), Roles: [R_SUPER, R_ADMIN]

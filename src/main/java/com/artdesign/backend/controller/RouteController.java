@@ -66,8 +66,14 @@ public class RouteController {
             } else {
                 // 非管理员：查看部门路由
                 if (user.getDepartment() != null && user.getDepartment().getRoutes() != null
-                        && !user.getDepartment().getRoutes().isEmpty()) {
-                    routes = new ArrayList<>(user.getDepartment().getRoutes());
+                    && !user.getDepartment().getRoutes().isEmpty()) {
+                    // 只获取一级菜单（父菜单为 null 的路由）
+                    // 一级菜单会自动包含它们的子菜单
+                    List<com.artdesign.backend.entity.Route> allDeptRoutes = new ArrayList<>(user.getDepartment().getRoutes());
+                    // 过滤出一级菜单
+                    routes = allDeptRoutes.stream()
+                            .filter(route -> route.getParent() == null)
+                            .collect(java.util.stream.Collectors.toList());
                 }
 
                 // 如果没有路由（或部门没有配置路由），分配默认路由：Dashboard + Form

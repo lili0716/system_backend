@@ -135,56 +135,65 @@ public class UserController {
     // 获取用户信息接口
     @GetMapping("/user/info")
     public Map<String, Object> getUserInfo(@RequestHeader(value = "Authorization", required = false) String token) {
-        // 从 JWT Token 中解析工号
-        String employeeId = null;
-        if (token != null) {
-            employeeId = jwtUtil.getEmployeeId(token);
-        }
-
-        if (employeeId == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("code", 401);
-            result.put("msg", "Token 无效或已过期");
-            return result;
-        }
-
-        User user = userService.findByEmployeeId(employeeId);
-
-        if (user == null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("code", 401);
-            result.put("msg", "User not found");
-            return result;
-        }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("buttons", new ArrayList<>());
-        List<String> roleCodes = user.getRoles().stream()
-                .map(com.artdesign.backend.entity.Role::getRoleCode)
-                .collect(Collectors.toList());
-        data.put("roles", roleCodes);
-        data.put("userId", user.getId());
-        data.put("userName", user.getNickName());
-        data.put("employeeId", user.getEmployeeId());
-        data.put("email", user.getEmail());
-        data.put("avatar", user.getAvatar());
-
-        // 获取并增加考勤规则信息
         try {
-            com.artdesign.backend.entity.AttendanceRule rule = attendanceService.getEffectiveRule(user);
-            if (rule != null) {
-                data.put("attendanceRule", rule);
+            // 从 JWT Token 中解析工号
+            String employeeId = null;
+            if (token != null) {
+                employeeId = jwtUtil.getEmployeeId(token);
             }
+
+            if (employeeId == null) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("code", 401);
+                result.put("msg", "Token 无效或已过期");
+                return result;
+            }
+
+            User user = userService.findByEmployeeId(employeeId);
+
+            if (user == null) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("code", 401);
+                result.put("msg", "User not found");
+                return result;
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("buttons", new ArrayList<>());
+            List<String> roleCodes = user.getRoles().stream()
+                    .map(com.artdesign.backend.entity.Role::getRoleCode)
+                    .collect(Collectors.toList());
+            data.put("roles", roleCodes);
+            data.put("userId", user.getId());
+            data.put("userName", user.getNickName());
+            data.put("employeeId", user.getEmployeeId());
+            data.put("email", user.getEmail());
+            data.put("avatar", user.getAvatar());
+
+            // 获取并增加考勤规则信息
+            try {
+                com.artdesign.backend.entity.AttendanceRule rule = attendanceService.getEffectiveRule(user);
+                if (rule != null) {
+                    data.put("attendanceRule", rule);
+                }
+            } catch (Exception e) {
+                System.out.println("Error fetching attendance rule: " + e.getMessage());
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("code", 200);
+            result.put("msg", "success");
+            result.put("data", data);
+
+            return result;
         } catch (Exception e) {
-            System.out.println("Error fetching attendance rule: " + e.getMessage());
+            System.out.println("Error in getUserInfo: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> result = new HashMap<>();
+            result.put("code", 500);
+            result.put("msg", "获取用户信息失败: " + e.getMessage());
+            return result;
         }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("code", 200);
-        result.put("msg", "success");
-        result.put("data", data);
-
-        return result;
     }
 
     // 获取用户列表接口

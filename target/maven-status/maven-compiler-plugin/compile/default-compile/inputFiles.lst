@@ -10,6 +10,7 @@ D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\OptionsContro
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\OrganizationController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\PasswordMigrationController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\PermissionController.java
+D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\PositionController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\RoleController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\RouteController.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\controller\SalaryStatisticsController.java
@@ -43,6 +44,7 @@ D:\atd_mini\backend\src\main\java\com\artdesign\backend\entity\UserCredential.ja
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\entity\UserRole.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\filter\ContentCachingFilter.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\interceptor\ApiLoggingInterceptor.java
+D:\atd_mini\backend\src\main\java\com\artdesign\backend\interceptor\AuthorizationInterceptor.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\repository\AttendanceAbnormalRecordRepository.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\repository\AttendanceFileRepository.java
 D:\atd_mini\backend\src\main\java\com\artdesign\backend\repository\AttendanceRecordRepository.java

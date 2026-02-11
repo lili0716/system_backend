@@ -99,11 +99,6 @@ public class RoleController {
         if (targetRole == null)
             return;
 
-        // 如果目标角色不是管理员角色，任何有权限的人都可以编辑
-        if (!Boolean.TRUE.equals(targetRole.getIsAdmin())) {
-            return;
-        }
-
         // 2. 从 JWT 中识别当前用户
         String employeeId = null;
         if (token != null) {
@@ -119,13 +114,30 @@ public class RoleController {
             throw new RuntimeException("Unauthorized: User not found");
         }
 
-        // 3. 检查当前用户是否也拥有管理员角色
-        boolean isCurrentUserAdmin = currentUser.getRoles().stream()
-                .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
+        // 3. 检查当前用户的角色权限
+        java.util.List<String> userRoleCodes = currentUser.getRoles().stream()
+                .map(Role::getRoleCode)
+                .collect(java.util.stream.Collectors.toList());
 
-        if (!isCurrentUserAdmin) {
-            throw new RuntimeException("Permission Denied: 只有管理员才能修改管理员角色。");
+        // 检查是否为超级管理员
+        boolean isSuperAdmin = userRoleCodes.contains("R_SUPER");
+        if (isSuperAdmin) {
+            // 超级管理员可以修改任何角色
+            return;
         }
+
+        // 检查是否为管理员
+        boolean isAdmin = userRoleCodes.contains("R_ADMIN");
+        if (isAdmin) {
+            // 管理员只能修改非管理员角色
+            if (Boolean.TRUE.equals(targetRole.getIsAdmin())) {
+                throw new RuntimeException("Permission Denied: 管理员只能修改普通用户的权限。");
+            }
+            return;
+        }
+
+        // 非管理员不能修改任何角色
+        throw new RuntimeException("Permission Denied: 只有管理员才能修改角色权限。");
     }
 
 }

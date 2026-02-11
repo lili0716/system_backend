@@ -3,15 +3,19 @@ package com.artdesign.backend.config;
 import com.artdesign.backend.entity.User;
 import com.artdesign.backend.entity.UserCredential;
 import com.artdesign.backend.entity.Role;
+import com.artdesign.backend.entity.Route;
+import com.artdesign.backend.entity.RouteMeta;
 import com.artdesign.backend.repository.UserRepository;
 import com.artdesign.backend.repository.UserCredentialRepository;
 import com.artdesign.backend.repository.RoleRepository;
+import com.artdesign.backend.repository.RouteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -28,6 +32,9 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private com.artdesign.backend.repository.AttendanceRuleRepository attendanceRuleRepository;
 
+    @Autowired
+    private RouteRepository routeRepository;
+
     @Override
     public void run(String... args) throws Exception {
         // 初始化角色
@@ -38,6 +45,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 初始化考勤规则
         initializeAttendanceRules();
+
+        // 初始化菜单
+        initializeRoutes();
 
         // 修复：确保已有角色的 isAdmin 字段正确
         fixExistingRolesIsAdmin();
@@ -208,6 +218,65 @@ public class DataInitializer implements CommandLineRunner {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    // 初始化菜单
+    private void initializeRoutes() {
+        // 检查是否已存在运维管理菜单
+        Route opsRoute = routeRepository.findByName("Ops");
+        if (opsRoute == null) {
+            // 创建运维管理一级菜单
+            opsRoute = new Route();
+            opsRoute.setName("Ops");
+            opsRoute.setPath("/ops");
+            opsRoute.setComponent("/index/index");
+
+            // 创建运维管理菜单的meta数据
+            RouteMeta opsMeta = new RouteMeta();
+            opsMeta.setTitle("运维管理");
+            opsMeta.setIcon("ri:server-line");
+            opsMeta.setKeepAlive(false);
+            opsMeta.setSort(6); // 设置排序，确保在合适的位置显示
+
+            // 设置角色权限
+            List<String> opsRoles = new ArrayList<>();
+            opsRoles.add("R_SUPER");
+            opsRoles.add("R_ADMIN");
+            opsMeta.setRoles(opsRoles);
+
+            opsRoute.setMeta(opsMeta);
+            routeRepository.save(opsRoute);
+
+            // 创建服务器运维二级菜单
+            Route serverRoute = new Route();
+            serverRoute.setName("ServerOps");
+            serverRoute.setPath("server");
+            serverRoute.setComponent("/ops/server-monitor");
+            serverRoute.setParent(opsRoute);
+
+            RouteMeta serverMeta = new RouteMeta();
+            serverMeta.setTitle("服务器运维");
+            serverMeta.setKeepAlive(true);
+            serverMeta.setRoles(opsRoles);
+            serverRoute.setMeta(serverMeta);
+            routeRepository.save(serverRoute);
+
+            // 创建系统日志二级菜单
+            Route logsRoute = new Route();
+            logsRoute.setName("SystemLogs");
+            logsRoute.setPath("logs");
+            logsRoute.setComponent("/ops/system-log");
+            logsRoute.setParent(opsRoute);
+
+            RouteMeta logsMeta = new RouteMeta();
+            logsMeta.setTitle("系统日志");
+            logsMeta.setKeepAlive(true);
+            logsMeta.setRoles(opsRoles);
+            logsRoute.setMeta(logsMeta);
+            routeRepository.save(logsRoute);
+
+            System.out.println("运维管理菜单初始化完成");
         }
     }
 }
