@@ -6,6 +6,10 @@ import com.artdesign.backend.service.UserService;
 import com.artdesign.backend.service.DepartmentService;
 import com.artdesign.backend.service.PositionService;
 import com.artdesign.backend.service.RoleService;
+import com.artdesign.backend.service.DataSyncService;
+import com.artdesign.backend.service.SalaryService;
+import com.artdesign.backend.entity.Salary;
+import com.artdesign.backend.dto.DataSyncDTO;
 import com.artdesign.backend.repository.UserCredentialRepository;
 import com.artdesign.backend.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +45,12 @@ public class UserController {
 
     @Autowired
     private JwtUtil jwtUtil;
+    
+    @Autowired
+    private DataSyncService dataSyncService;
+    
+    @Autowired
+    private SalaryService salaryService;
 
     // 测试接口
     @GetMapping("/test")
@@ -332,10 +342,26 @@ public class UserController {
 
             User user = userService.findById(id);
             if (user != null) {
-                System.out.println("User found: " + user.getNickName() + ", old salary: " + user.getSalary());
-                user.setSalary(salary);
-                User savedUser = userService.save(user);
-                System.out.println("User saved. New salary: " + savedUser.getSalary());
+                System.out.println("User found: " + user.getNickName());
+                
+                // 查找或创建薪资信息
+                Salary userSalary = salaryService.findByUserId(id);
+                if (userSalary == null) {
+                    userSalary = new Salary();
+                    userSalary.setUser(user);
+                    userSalary.setStatus("1");
+                    userSalary.setCreateBy("system");
+                    userSalary.setCreateTime(new java.util.Date());
+                }
+                
+                // 更新薪资信息
+                userSalary.setAmount(salary);
+                userSalary.setCurrentSalary(salary);
+                userSalary.setUpdateBy("system");
+                userSalary.setUpdateTime(new java.util.Date());
+                
+                Salary savedSalary = salaryService.save(userSalary);
+                System.out.println("Salary saved. New salary: " + savedSalary.getAmount());
 
                 result.put("code", 200);
                 result.put("msg", "Salary updated successfully");
@@ -355,7 +381,17 @@ public class UserController {
 
     @DeleteMapping("/users/{id}")
     public Map<String, Object> deleteById(@PathVariable Long id) {
+        // 删除用户相关的薪资信息
+        try {
+            salaryService.deleteByUserId(id);
+            System.out.println("Salary deleted for user: " + id);
+        } catch (Exception e) {
+            System.out.println("Error deleting salary: " + e.getMessage());
+        }
+        
+        // 删除用户
         userService.deleteById(id);
+        
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
         result.put("msg", "success");
@@ -380,5 +416,25 @@ public class UserController {
         result.put("msg", "success");
         result.put("data", data);
         return result;
+    }
+    
+    /**
+     * 数据同步接口
+     * @param syncDTO 数据同步配置
+     * @return 同步结果
+     */
+    @PostMapping("/users/sync")
+    public Map<String, Object> syncUsers(@RequestBody DataSyncDTO syncDTO) {
+        return dataSyncService.syncEmployeeData(syncDTO);
+    }
+    
+    /**
+     * 测试数据库连接接口
+     * @param syncDTO 数据库连接配置
+     * @return 连接测试结果
+     */
+    @PostMapping("/users/test-connection")
+    public Map<String, Object> testConnection(@RequestBody DataSyncDTO syncDTO) {
+        return dataSyncService.testConnection(syncDTO);
     }
 }

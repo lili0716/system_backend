@@ -58,7 +58,6 @@ public class UserServiceImpl implements UserService {
     @Override
     public Map<String, Object> getUserList(Map<String, Object> params) {
         // 获取分页参数
-        // 获取分页参数
         int current = 1;
         int size = 10;
         try {
@@ -77,16 +76,11 @@ public class UserServiceImpl implements UserService {
             createDefaultUsers();
         }
 
-        // 创建分页对象
-        Pageable pageable = PageRequest.of(current - 1, size);
+        // 创建分页对象，使用默认排序
+        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.ASC, "nickName"));
 
         // 构建查询条件
         Specification<User> spec = (root, query, cb) -> {
-            // Apply sorting by nickName (pinyin)
-            if (query.getResultType() != Long.class) {
-                query.orderBy(cb.asc(cb.function("convert_to", byte[].class, root.get("nickName"), cb.literal("GBK"))));
-            }
-
             List<Predicate> predicates = new java.util.ArrayList<>();
 
             // 姓名模糊查询
@@ -105,8 +99,6 @@ public class UserServiceImpl implements UserService {
             }
 
             // 在职时长查询
-            // tenureMin: 最小在职年限 -> 入职日期 <= 当前日期 - min years
-            // tenureMax: 最大在职年限 -> 入职日期 >= 当前日期 - max years
             Date now = new Date();
             Calendar calendar = Calendar.getInstance();
             calendar.setTime(now);
@@ -116,7 +108,6 @@ public class UserServiceImpl implements UserService {
                     int minYears = Integer.parseInt(params.get("tenureMin").toString());
                     Calendar minCal = (Calendar) calendar.clone();
                     minCal.add(Calendar.YEAR, -minYears);
-                    // hireDate <= now - minYears
                     predicates.add(cb.lessThanOrEqualTo(root.get("hireDate"), minCal.getTime()));
                 } catch (NumberFormatException e) {
                     // ignore invalid number
@@ -128,7 +119,6 @@ public class UserServiceImpl implements UserService {
                     int maxYears = Integer.parseInt(params.get("tenureMax").toString());
                     Calendar maxCal = (Calendar) calendar.clone();
                     maxCal.add(Calendar.YEAR, -maxYears);
-                    // hireDate >= now - maxYears
                     predicates.add(cb.greaterThanOrEqualTo(root.get("hireDate"), maxCal.getTime()));
                 } catch (NumberFormatException e) {
                     // ignore invalid number
@@ -136,7 +126,6 @@ public class UserServiceImpl implements UserService {
             }
 
             // 默认只查询未删除的或者在职/离职状态
-            // 如果前端传了 status，则使用前端传的
             if (params.get("status") != null && !params.get("status").toString().isEmpty()) {
                 predicates.add(cb.equal(root.get("status"), params.get("status")));
             }
@@ -144,50 +133,64 @@ public class UserServiceImpl implements UserService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        // 执行分页查询
-        Page<User> userPage = userRepository.findAll(spec, pageable);
+        try {
+            // 执行分页查询
+            Page<User> userPage = userRepository.findAll(spec, pageable);
 
-        // 构建只包含指定字段的用户列表
-        List<Map<String, Object>> userList = new java.util.ArrayList<>();
-        for (User user : userPage.getContent()) {
-            Map<String, Object> userMap = new HashMap<>();
-            userMap.put("id", user.getId());
-            userMap.put("nickName", user.getNickName());
-            userMap.put("userGender", user.getUserGender());
-            userMap.put("email", user.getEmail());
-            userMap.put("employeeId", user.getEmployeeId());
-            userMap.put("createTime", user.getCreateTime());
-            userMap.put("status", user.getStatus());
-            userMap.put("hireDate", user.getHireDate());
-            userMap.put("leaveDate", user.getLeaveDate());
-            userMap.put("updateTime", user.getUpdateTime());
-            userMap.put("updateTime", user.getUpdateTime());
-            userMap.put("remark", user.getRemark());
-            userMap.put("salary", user.getSalary());
-            userMap.put("idCard", user.getIdCard());
-            userMap.put("department", user.getDepartment());
-            userMap.put("roles", user.getRoles()); // Also ensure roles are returned for echoing!
+            // 构建只包含指定字段的用户列表
+            List<Map<String, Object>> userList = new java.util.ArrayList<>();
+            for (User user : userPage.getContent()) {
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("id", user.getId());
+                userMap.put("nickName", user.getNickName());
+                userMap.put("userGender", user.getUserGender());
+                userMap.put("email", user.getEmail());
+                userMap.put("employeeId", user.getEmployeeId());
+                userMap.put("createTime", user.getCreateTime());
+                userMap.put("status", user.getStatus());
+                userMap.put("hireDate", user.getHireDate());
+                userMap.put("leaveDate", user.getLeaveDate());
+                userMap.put("updateTime", user.getUpdateTime());
+                userMap.put("remark", user.getRemark());
+                userMap.put("idCard", user.getIdCard());
+                
+                // 避免直接关联查询，只返回部门ID和名称
+                if (user.getDepartment() != null) {
+                    userMap.put("departmentId", user.getDepartment().getId());
+                    userMap.put("departmentName", user.getDepartment().getName());
+                }
 
-            // 计算并返回tenure (年，保留1位小数)
-            if (user.getHireDate() != null) {
-                long diffInMillies = Math.abs(new Date().getTime() - user.getHireDate().getTime());
-                double years = diffInMillies / (1000.0 * 60 * 60 * 24 * 365.25);
-                userMap.put("tenure", String.format("%.1f", years));
-            } else {
-                userMap.put("tenure", "0.0");
+                // 计算并返回tenure (年，保留1位小数)
+                if (user.getHireDate() != null) {
+                    long diffInMillies = Math.abs(new Date().getTime() - user.getHireDate().getTime());
+                    double years = diffInMillies / (1000.0 * 60 * 60 * 24 * 365.25);
+                    userMap.put("tenure", String.format("%.1f", years));
+                } else {
+                    userMap.put("tenure", "0.0");
+                }
+
+                userList.add(userMap);
             }
 
-            userList.add(userMap);
+            // 构建响应结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("records", userList);
+            result.put("current", current);
+            result.put("size", size);
+            result.put("total", userPage.getTotalElements());
+
+            return result;
+        } catch (Exception e) {
+            // 捕获并记录异常
+            e.printStackTrace();
+            // 返回错误信息
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("records", new java.util.ArrayList<>());
+            errorResult.put("current", current);
+            errorResult.put("size", size);
+            errorResult.put("total", 0);
+            return errorResult;
         }
-
-        // 构建响应结果
-        Map<String, Object> result = new HashMap<>();
-        result.put("records", userList);
-        result.put("current", current);
-        result.put("size", size);
-        result.put("total", userPage.getTotalElements());
-
-        return result;
     }
 
     // 创建默认用户数据

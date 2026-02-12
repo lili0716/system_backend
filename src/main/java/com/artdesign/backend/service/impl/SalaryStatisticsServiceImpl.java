@@ -8,6 +8,8 @@ import com.artdesign.backend.repository.AttendanceRecordRepository;
 import com.artdesign.backend.repository.LeaveFormRepository;
 import com.artdesign.backend.repository.UserRepository;
 import com.artdesign.backend.service.SalaryStatisticsService;
+import com.artdesign.backend.service.SalaryService;
+import com.artdesign.backend.entity.Salary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -32,9 +34,12 @@ public class SalaryStatisticsServiceImpl implements SalaryStatisticsService {
 
     @Autowired
     private LeaveFormRepository leaveFormRepository;
+    
+    @Autowired
+    private SalaryService salaryService;
 
     @Override
-    public List<SalaryStatisticsDTO> calculateMonthlySalary(String monthStr) {
+    public List<SalaryStatisticsDTO> calculateMonthlySalary(String monthStr, String employeeId, Long departmentId) {
         List<SalaryStatisticsDTO> result = new ArrayList<>();
 
         // Parse "YYYY-MM"
@@ -45,7 +50,18 @@ public class SalaryStatisticsServiceImpl implements SalaryStatisticsService {
         Date startDate = Date.from(startLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date endDate = Date.from(endLocalDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
 
-        List<User> users = userRepository.findAll();
+        List<User> users;
+        if (StringUtils.hasText(employeeId)) {
+            // 按工号查询
+            User user = userRepository.findByEmployeeId(employeeId);
+            users = user != null ? List.of(user) : new ArrayList<>();
+        } else if (departmentId != null) {
+            // 按部门查询
+            users = userRepository.findByDepartmentId(departmentId);
+        } else {
+            // 查询所有用户
+            users = userRepository.findAll();
+        }
 
         for (User user : users) {
             // Skip if user has no basic info needed or specific status?
@@ -61,12 +77,14 @@ public class SalaryStatisticsServiceImpl implements SalaryStatisticsService {
 
             // 1. Basic Salary
             BigDecimal basicSalary = BigDecimal.ZERO;
-            if (StringUtils.hasText(user.getSalary())) {
-                try {
-                    basicSalary = new BigDecimal(user.getSalary());
-                } catch (Exception e) {
-                    // ignore
+            try {
+                // 从薪资表中获取薪资信息
+                Salary userSalary = salaryService.findByUserId(user.getId());
+                if (userSalary != null && StringUtils.hasText(userSalary.getCurrentSalary())) {
+                    basicSalary = new BigDecimal(userSalary.getCurrentSalary());
                 }
+            } catch (Exception e) {
+                // ignore
             }
             dto.setBasicSalary(basicSalary);
 

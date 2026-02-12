@@ -1,7 +1,9 @@
 package com.artdesign.backend.service.impl;
 
 import com.artdesign.backend.entity.Department;
+import com.artdesign.backend.entity.User;
 import com.artdesign.backend.repository.DepartmentRepository;
+import com.artdesign.backend.repository.UserRepository;
 import com.artdesign.backend.service.DepartmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,9 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Autowired
     private DepartmentRepository departmentRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     public List<Department> findAll() {
@@ -50,6 +55,16 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Override
     public Map<String, Object> getDepartmentTree() {
         List<Department> allDepartments = departmentRepository.findAll();
+        List<User> allUsers = userRepository.findAll();
+        
+        // 计算每个部门的员工数量
+        Map<Long, Integer> employeeCountMap = new HashMap<>();
+        for (User user : allUsers) {
+            if (user.getDepartment() != null) {
+                Long deptId = user.getDepartment().getId();
+                employeeCountMap.put(deptId, employeeCountMap.getOrDefault(deptId, 0) + 1);
+            }
+        }
 
         // Transform to nodes map
         Map<Long, Map<String, Object>> nodeMap = new HashMap<>();
@@ -66,6 +81,7 @@ public class DepartmentServiceImpl implements DepartmentService {
             node.put("enabled", dept.getEnabled());
             node.put("leaderId", dept.getLeaderId());
             node.put("leaderName", dept.getLeaderName());
+            node.put("employeeCount", employeeCountMap.getOrDefault(dept.getId(), 0));
             node.put("children", new ArrayList<>());
 
             // Safe parent ID access
@@ -107,9 +123,33 @@ public class DepartmentServiceImpl implements DepartmentService {
             }
         }
 
+        // 3. 递归计算每个部门及其子部门的总人数
+        for (Map<String, Object> node : treeNodes) {
+            calculateTotalEmployeeCount(node, employeeCountMap, nodeMap);
+        }
+
         Map<String, Object> result = new HashMap<>();
         result.put("nodes", treeNodes);
         return result;
+    }
+
+    // 递归计算部门及其子部门的总人数
+    private void calculateTotalEmployeeCount(Map<String, Object> node, Map<Long, Integer> employeeCountMap, Map<Long, Map<String, Object>> nodeMap) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> children = (List<Map<String, Object>>) node.get("children");
+        
+        // 计算当前部门的基础人数
+        Long deptId = (Long) node.get("id");
+        int totalCount = employeeCountMap.getOrDefault(deptId, 0);
+        
+        // 递归计算子部门的人数
+        for (Map<String, Object> child : children) {
+            calculateTotalEmployeeCount(child, employeeCountMap, nodeMap);
+            totalCount += (Integer) child.get("employeeCount");
+        }
+        
+        // 更新当前部门的总人数
+        node.put("employeeCount", totalCount);
     }
 
     // Removed recursive buildDeptNode as it is no longer used

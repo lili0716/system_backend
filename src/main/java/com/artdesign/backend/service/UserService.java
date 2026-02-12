@@ -1,6 +1,7 @@
 package com.artdesign.backend.service;
 
 import com.artdesign.backend.entity.User;
+import com.artdesign.backend.entity.Salary;
 import java.util.List;
 import java.util.Map;
 

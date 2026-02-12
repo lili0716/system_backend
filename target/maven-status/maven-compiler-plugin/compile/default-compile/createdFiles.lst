@@ -1,3 +1,4 @@
+com\artdesign\backend\dto\DataSyncDTO.class
 com\artdesign\backend\repository\SystemLogRepository.class
 com\artdesign\backend\service\impl\UserServiceImpl.class
 com\artdesign\backend\entity\PunchCardForm.class
@@ -17,6 +18,7 @@ com\artdesign\backend\controller\SystemController.class
 com\artdesign\backend\controller\ServerMonitorController.class
 com\artdesign\backend\repository\OvertimeFormRepository.class
 com\artdesign\backend\repository\FieldWorkFormRepository.class
+com\artdesign\backend\dto\DataSyncDTO$FieldMapping.class
 com\artdesign\backend\service\impl\AttendanceServiceImpl.class
 com\artdesign\backend\entity\OvertimeForm.class
 com\artdesign\backend\controller\PasswordMigrationController.class
@@ -29,6 +31,8 @@ com\artdesign\backend\service\impl\PositionServiceImpl.class
 com\artdesign\backend\service\PositionService.class
 com\artdesign\backend\controller\RoleController.class
 com\artdesign\backend\entity\AttendanceRecord.class
+com\artdesign\backend\repository\SalaryRepository.class
+com\artdesign\backend\service\impl\DataSyncServiceImpl.class
 com\artdesign\backend\config\DataInitializer.class
 com\artdesign\backend\entity\LeaveForm.class
 com\artdesign\backend\entity\SystemLog.class
@@ -40,6 +44,7 @@ com\artdesign\backend\service\impl\PermissionServiceImpl.class
 com\artdesign\backend\service\PermissionService.class
 com\artdesign\backend\controller\FormController.class
 com\artdesign\backend\entity\UserRole.class
+com\artdesign\backend\service\impl\SalaryServiceImpl.class
 com\artdesign\backend\repository\UserRepository.class
 com\artdesign\backend\controller\InitDataController.class
 com\artdesign\backend\controller\TestController.class
@@ -47,6 +52,7 @@ com\artdesign\backend\repository\RouteRepository.class
 com\artdesign\backend\controller\PermissionController.class
 com\artdesign\backend\controller\SalaryStatisticsController.class
 com\artdesign\backend\entity\Department.class
+com\artdesign\backend\entity\Salary.class
 com\artdesign\backend\repository\RoleRepository.class
 com\artdesign\backend\repository\AttendanceFileRepository.class
 com\artdesign\backend\controller\PositionController.class
@@ -67,8 +73,10 @@ com\artdesign\backend\service\RouteService.class
 com\artdesign\backend\service\impl\RoleServiceImpl.class
 com\artdesign\backend\repository\UserCredentialRepository.class
 com\artdesign\backend\service\FormService.class
+com\artdesign\backend\service\SalaryService.class
 com\artdesign\backend\entity\Form.class
 com\artdesign\backend\controller\SystemLogController.class
+com\artdesign\backend\util\SuperAdminInitializer.class
 com\artdesign\backend\service\SalaryStatisticsService.class
 com\artdesign\backend\repository\AttendanceRecordRepository.class
 com\artdesign\backend\entity\BusinessTripForm.class
@@ -83,3 +91,4 @@ com\artdesign\backend\service\impl\AttendanceServiceImpl$1.class
 com\artdesign\backend\entity\AttendanceAbnormalRecord.class
 com\artdesign\backend\interceptor\ApiLoggingInterceptor.class
 com\artdesign\backend\config\WebMvcConfig.class
+com\artdesign\backend\service\DataSyncService.class

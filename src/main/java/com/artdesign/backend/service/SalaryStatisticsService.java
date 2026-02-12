@@ -6,10 +6,12 @@ import java.util.List;
 
 public interface SalaryStatisticsService {
     /**
-     * Calculate monthly salary statistics for all users
+     * Calculate monthly salary statistics
      * 
      * @param month YYYY-MM
+     * @param employeeId Employee ID (optional)
+     * @param departmentId Department ID (optional)
      * @return List of salary statistics
      */
-    List<SalaryStatisticsDTO> calculateMonthlySalary(String month);
+    List<SalaryStatisticsDTO> calculateMonthlySalary(String month, String employeeId, Long departmentId);
 }

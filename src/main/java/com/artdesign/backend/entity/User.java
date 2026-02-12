@@ -64,9 +64,6 @@ public class User {
     // 备注
     private String remark;
 
-    // 薪资
-    private String salary;
-
     // 身份证号
     private String idCard;
 
@@ -245,14 +242,6 @@ public class User {
 
     public void setRemark(String remark) {
         this.remark = remark;
-    }
-
-    public String getSalary() {
-        return salary;
-    }
-
-    public void setSalary(String salary) {
-        this.salary = salary;
     }
 
     public String getIdCard() {

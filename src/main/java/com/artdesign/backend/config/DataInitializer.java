@@ -101,8 +101,8 @@ public class DataInitializer implements CommandLineRunner {
 
             // 创建超级管理员用户
             User superUser = new User();
-            superUser.setEmployeeId("20950");
-            superUser.setEmail("20950@example.com");
+            superUser.setEmployeeId("SpuerAdmin");
+            superUser.setEmail("superadmin@example.com");
             superUser.setNickName("超级管理员");
             superUser.setUserPhone("13800138000");
             superUser.setUserGender("男");
@@ -116,12 +116,12 @@ public class DataInitializer implements CommandLineRunner {
             }
             userRepository.save(superUser);
             // 密码存入 user_credentials 表
-            saveCredential("20950", "123456");
+            saveCredential("SpuerAdmin", "123456");
 
             // 创建管理员用户
             User adminUser = new User();
-            adminUser.setEmployeeId("20951");
-            adminUser.setEmail("20951@example.com");
+            adminUser.setEmployeeId("Admin");
+            adminUser.setEmail("admin@example.com");
             adminUser.setNickName("管理员");
             adminUser.setUserPhone("13800138001");
             adminUser.setUserGender("女");
@@ -134,7 +134,7 @@ public class DataInitializer implements CommandLineRunner {
                 adminUser.setRoles(List.of(adminRole));
             }
             userRepository.save(adminUser);
-            saveCredential("20951", "123456");
+            saveCredential("Admin", "123456");
 
             // 创建普通用户
             User normalUser = new User();

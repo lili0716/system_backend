@@ -19,7 +19,10 @@ public class SalaryStatisticsController {
     private SalaryStatisticsService salaryStatisticsService;
 
     @GetMapping
-    public Result<List<SalaryStatisticsDTO>> getMonthlyStatistics(@RequestParam String month) {
-        return Result.success(salaryStatisticsService.calculateMonthlySalary(month));
+    public Result<List<SalaryStatisticsDTO>> getMonthlyStatistics(
+            @RequestParam String month,
+            @RequestParam(required = false) String employeeId,
+            @RequestParam(required = false) Long departmentId) {
+        return Result.success(salaryStatisticsService.calculateMonthlySalary(month, employeeId, departmentId));
     }
 }
