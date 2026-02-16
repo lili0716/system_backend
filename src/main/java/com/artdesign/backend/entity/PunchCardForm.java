@@ -1,39 +1,28 @@
 package com.artdesign.backend.entity;
 
-import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
 
-/**
- * 补打卡表单实体
- * 关联异常考勤记录，支持多条异常记录一次性申请补卡
- */
+import jakarta.persistence.*;
+import java.util.Date;
+
+@Data
 @Entity
 @Table(name = "punch_card_form")
 public class PunchCardForm extends Form {
 
-    // 关联的异常记录ID列表（逗号分隔）
-    @Column(length = 500)
-    private String abnormalRecordIds;
+    // 补打卡日期
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date punchDate;
+
+    // 补打卡时间
+    @JsonFormat(pattern = "HH:mm:ss")
+    private Date punchTime;
+
+    // 补打卡类型：1-上班，2-下班
+    private Integer punchType;
 
     // 补打卡原因
-    @Column(length = 500)
     private String reason;
 
-    public PunchCardForm() {
-    }
-
-    public String getAbnormalRecordIds() {
-        return abnormalRecordIds;
-    }
-
-    public void setAbnormalRecordIds(String abnormalRecordIds) {
-        this.abnormalRecordIds = abnormalRecordIds;
-    }
-
-    public String getReason() {
-        return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
 }

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,9 +24,6 @@ public class RoleServiceImpl implements RoleService {
 
     @Autowired
     private PermissionRepository permissionRepository;
-
-    @Autowired
-    private com.artdesign.backend.repository.RouteRepository routeRepository;
 
     @Override
     public List<Role> findAll() {
@@ -52,23 +48,22 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public Map<String, Object> getRoleList(Map<String, Object> params) {
         // 获取分页参数
-        int current = params.getOrDefault("current", 1) instanceof Number ? ((Number) params.get("current")).intValue()
-                : 1;
+        int current = params.getOrDefault("current", 1) instanceof Number ? ((Number) params.get("current")).intValue() : 1;
         int size = params.getOrDefault("size", 10) instanceof Number ? ((Number) params.get("size")).intValue() : 10;
-
+        
         // 创建分页对象
         Pageable pageable = PageRequest.of(current - 1, size);
-
+        
         // 执行分页查询
         Page<Role> rolePage = roleRepository.findAll(pageable);
-
+        
         // 构建响应结果
         Map<String, Object> result = new HashMap<>();
         result.put("records", rolePage.getContent());
         result.put("current", current);
         result.put("size", size);
         result.put("total", rolePage.getTotalElements());
-
+        
         return result;
     }
 
@@ -97,61 +92,6 @@ public class RoleServiceImpl implements RoleService {
             role.setPermissions(permissions);
             roleRepository.save(role);
         }
-    }
-
-    @Override
-    public List<String> getRoleMenuPermissions(Long roleId) {
-        Role role = roleRepository.findById(roleId).orElse(null);
-        if (role == null)
-            return new ArrayList<>();
-        String roleCode = role.getRoleCode();
-        if (roleCode == null)
-            return new ArrayList<>();
-
-        // Fetch all routes
-        List<com.artdesign.backend.entity.Route> allRoutes = routeRepository.findAll();
-        List<String> allowedRouteNames = new ArrayList<>();
-
-        for (com.artdesign.backend.entity.Route route : allRoutes) {
-            if (route.getMeta() != null && route.getMeta().getRoles() != null) {
-                if (route.getMeta().getRoles().contains(roleCode)) {
-                    allowedRouteNames.add(route.getName());
-                }
-            }
-        }
-        return allowedRouteNames;
-    }
-
-    @Override
-    @org.springframework.transaction.annotation.Transactional
-    public void assignMenuPermissionsToRole(Long roleId, List<String> routeNames) {
-        Role role = roleRepository.findById(roleId).orElse(null);
-        if (role == null) {
-            throw new RuntimeException("Role not found");
-        }
-        String roleCode = role.getRoleCode();
-
-        List<com.artdesign.backend.entity.Route> allRoutes = routeRepository.findAll();
-        for (com.artdesign.backend.entity.Route route : allRoutes) {
-            if (route.getMeta() == null)
-                continue;
-
-            List<String> roles = route.getMeta().getRoles();
-            if (roles == null) {
-                roles = new ArrayList<>();
-                route.getMeta().setRoles(roles);
-            }
-
-            boolean shouldHave = routeNames.contains(route.getName());
-            boolean currentlyHas = roles.contains(roleCode);
-
-            if (shouldHave && !currentlyHas) {
-                roles.add(roleCode);
-            } else if (!shouldHave && currentlyHas) {
-                roles.remove(roleCode);
-            }
-        }
-        routeRepository.saveAll(allRoutes);
     }
 
 }

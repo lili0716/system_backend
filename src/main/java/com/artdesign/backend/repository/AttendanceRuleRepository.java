@@ -10,28 +10,7 @@ public interface AttendanceRuleRepository extends JpaRepository<AttendanceRule, 
     // 根据启用状态查询
     List<AttendanceRule> findByEnabled(Boolean enabled);
 
-    // 查询默认规则
-    AttendanceRule findByIsDefaultTrue();
-
     // 根据规则名称查询
     AttendanceRule findByRuleName(String ruleName);
-
-    // 根据部门ID查询
-    List<AttendanceRule> findByDepartmentId(Long departmentId);
-
-    // 根据单双休设置查询
-    List<AttendanceRule> findBySingleWeekOff(Boolean singleWeekOff);
-
-    // 根据规则名称和单双休设置查询
-    List<AttendanceRule> findByRuleNameContainingAndSingleWeekOff(String ruleName, Boolean singleWeekOff);
-
-    // 根据规则名称查询（模糊查询）
-    List<AttendanceRule> findByRuleNameContaining(String ruleName);
-
-    // 根据部门ID和启用状态查询
-    List<AttendanceRule> findByDepartmentIdAndEnabledTrue(Long departmentId);
-
-    // 查询全局启用规则（部门为空）
-    List<AttendanceRule> findByDepartmentIdIsNullAndEnabledTrue();
 
 }
