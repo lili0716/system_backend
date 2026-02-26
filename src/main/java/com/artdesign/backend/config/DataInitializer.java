@@ -278,5 +278,30 @@ public class DataInitializer implements CommandLineRunner {
 
             System.out.println("运维管理菜单初始化完成");
         }
+
+        // 检查是否已存在排班管理菜单
+        Route attRoute = routeRepository.findByName("Attendance");
+        if (attRoute != null) {
+            boolean scheduleExists = routeRepository.findAll().stream()
+                    .anyMatch(r -> "AttendanceSchedule".equals(r.getName()));
+            if (!scheduleExists) {
+                Route scheduleRoute = new Route();
+                scheduleRoute.setName("AttendanceSchedule");
+                scheduleRoute.setPath("schedule");
+                scheduleRoute.setComponent("/attendance/schedule");
+                scheduleRoute.setParent(attRoute);
+
+                RouteMeta scheduleMeta = new RouteMeta();
+                scheduleMeta.setTitle("排班管理");
+                scheduleMeta.setKeepAlive(true);
+                List<String> scheduleRoles = new ArrayList<>();
+                scheduleRoles.add("R_SUPER");
+                scheduleRoles.add("R_ADMIN");
+                scheduleMeta.setRoles(scheduleRoles);
+                scheduleRoute.setMeta(scheduleMeta);
+                routeRepository.save(scheduleRoute);
+                System.out.println("排班管理菜单初始化完成");
+            }
+        }
     }
 }

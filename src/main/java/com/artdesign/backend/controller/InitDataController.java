@@ -352,7 +352,8 @@ public class InitDataController {
         users.add(u2);
     }
 
-    private void initRoutes() {
+    @Transactional
+    public void initRoutes() {
         // 1. Console (工作台) - Top level route, no parent
         Route console = createRoute("Console", "/dashboard", "/dashboard/console", null);
         console.setMeta(createMeta("工作台", "ri:pie-chart-line", List.of("R_SUPER", "R_ADMIN")));
@@ -426,6 +427,13 @@ public class InitDataController {
         app.setMeta(createMeta("表单申请", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
         app.getMeta().setKeepAlive(true);
 
+        Route appEdit = createRoute("FormApplicationEdit", "edit", "/form/application/form-edit", app);
+        appEdit.setMeta(createMeta("新增申请", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
+        appEdit.getMeta().setKeepAlive(false);
+        appEdit.getMeta().setIsHide(true);
+
+        app.setChildren(new ArrayList<>(List.of(appEdit)));
+
         Route approval = createRoute("FormApproval", "approval", "/form/approval", form);
         approval.setMeta(createMeta("表单审批", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
         approval.getMeta().setKeepAlive(true);
@@ -449,8 +457,30 @@ public class InitDataController {
         rule.setMeta(createMeta("考勤规则", null, List.of("R_SUPER", "R_ADMIN")));
         rule.getMeta().setKeepAlive(true);
 
-        att.setChildren(new ArrayList<>(List.of(upload, query, rule)));
+        Route schedule = createRoute("AttendanceSchedule", "schedule", "/attendance/schedule", att);
+        schedule.setMeta(createMeta("排班管理", null, List.of("R_SUPER", "R_ADMIN")));
+        schedule.getMeta().setKeepAlive(true);
+
+        att.setChildren(new ArrayList<>(List.of(upload, query, rule, schedule)));
         routeRepository.save(att);
+
+        // 6. Ops
+        Route ops = createRoute("Ops", "/ops", "/index/index", null);
+        ops.setMeta(createMeta("运维管理", "ri:server-line", List.of("R_SUPER", "R_ADMIN")));
+        ops.getMeta().setSort(6);
+
+        Route server = createRoute("ServerOps", "server", "/ops/server-monitor", ops);
+        server.setMeta(createMeta("服务器运维", null, List.of("R_SUPER", "R_ADMIN")));
+        server.getMeta().setKeepAlive(true);
+
+        Route logs = createRoute("SystemLogs", "logs", "/ops/system-log", ops);
+        logs.setMeta(createMeta("系统日志", null, List.of("R_SUPER", "R_ADMIN")));
+        logs.getMeta().setKeepAlive(true);
+
+        ops.setChildren(new ArrayList<>(List.of(server, logs)));
+
+        // 保存所有路由
+        routeRepository.saveAll(List.of(console, personnel, org, sys, form, att, ops));
     }
 
     private Route createRoute(String name, String path, String component, Route parent) {
@@ -490,14 +520,39 @@ public class InitDataController {
     }
 
     @GetMapping("/routes")
-    @Transactional
     public void updateRoutes(jakarta.servlet.http.HttpServletResponse response) {
         try {
-            // ... (deletion logic same as before)
+            // 清理旧路由，由于可能有外键约束抛异常，我们不能让异常触发当前主方法的事务回滚
+            // 因此可以提前通过 JdbcTemplate 尝试删除，但这会导致 rollback_only
+            // 最好的办法是使用 routeRepository 的 deleteAll() 或者明确知道不存在外键依赖。
+            // 由于系统目前是简化的，我们先清理关联关系
+
+            try {
+                jdbcTemplate.execute("DELETE FROM department_routes");
+            } catch (Exception e) {
+            }
+
             try {
                 jdbcTemplate.execute("UPDATE routes SET parent_id = NULL");
+            } catch (Exception e) {
+            }
+
+            try {
+                jdbcTemplate.execute("DELETE FROM route_meta_roles");
+            } catch (Exception e) {
+            }
+
+            try {
+                jdbcTemplate.execute("DELETE FROM auth_items");
+            } catch (Exception e) {
+            }
+
+            try {
                 jdbcTemplate.execute("DELETE FROM routes");
-                jdbcTemplate.execute("DELETE FROM route_meta_roles"); // Important!
+            } catch (Exception e) {
+            }
+
+            try {
                 jdbcTemplate.execute("DELETE FROM route_meta");
             } catch (Exception e) {
             }

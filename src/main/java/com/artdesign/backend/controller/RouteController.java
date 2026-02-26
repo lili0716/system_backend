@@ -38,104 +38,116 @@ public class RouteController {
         }
         List<com.artdesign.backend.entity.Route> routes = new ArrayList<>();
 
-        if (user != null) {
-            // 动态判断是否为管理员：查询用户角色的 isAdmin 字段
-            boolean isAdmin = user.getRoles().stream()
-                    .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
+        Map<String, Object> result = new HashMap<>();
+        try {
+            if (user != null) {
+                // 动态判断是否为管理员：查询用户角色的 isAdmin 字段
+                boolean isAdmin = user.getRoles().stream()
+                        .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
 
-            if (isAdmin) {
-                // 管理员看到所有顶级路由
-                try (java.io.PrintWriter out = new java.io.PrintWriter("debug_routes.txt")) {
-                    out.println("User " + employeeId + " is Admin. Fetching all top-level routes.");
-                    routes = routeRepository.findByParentIsNull();
-                    out.println("Found top-level routes: " + routes.size());
-                    for (com.artdesign.backend.entity.Route r : routes) {
-                        out.println("Route: " + r.getName() + ", Path: " + r.getPath() + ", Roles: "
-                                + (r.getMeta() != null ? r.getMeta().getRoles() : "null"));
-                        if (r.getChildren() != null) {
-                            out.println("  Children of " + r.getName() + ": " + r.getChildren().size());
-                            for (com.artdesign.backend.entity.Route c : r.getChildren()) {
-                                out.println("    - " + c.getName() + " (" + c.getPath() + "), Roles: "
-                                        + (c.getMeta() != null ? c.getMeta().getRoles() : "null"));
+                if (isAdmin) {
+                    // 管理员看到所有顶级路由
+                    try (java.io.PrintWriter out = new java.io.PrintWriter("debug_routes.txt")) {
+                        out.println("User " + employeeId + " is Admin. Fetching all top-level routes.");
+                        routes = routeRepository.findByParentIsNull();
+                        out.println("Found top-level routes: " + routes.size());
+                        for (com.artdesign.backend.entity.Route r : routes) {
+                            out.println("Route: " + r.getName() + ", Path: " + r.getPath() + ", Roles: "
+                                    + (r.getMeta() != null ? r.getMeta().getRoles() : "null"));
+                            if (r.getChildren() != null) {
+                                out.println("  Children of " + r.getName() + ": " + r.getChildren().size());
+                                for (com.artdesign.backend.entity.Route c : r.getChildren()) {
+                                    out.println("    - " + c.getName() + " (" + c.getPath() + "), Roles: "
+                                            + (c.getMeta() != null ? c.getMeta().getRoles() : "null"));
+                                }
                             }
                         }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else {
-                // 非管理员：查看部门路由
-                if (user.getDepartment() != null && user.getDepartment().getRoutes() != null
-                    && !user.getDepartment().getRoutes().isEmpty()) {
-                    // 只获取一级菜单（父菜单为 null 的路由）
-                    // 一级菜单会自动包含它们的子菜单
-                    List<com.artdesign.backend.entity.Route> allDeptRoutes = new ArrayList<>(user.getDepartment().getRoutes());
-                    // 过滤出一级菜单
-                    routes = allDeptRoutes.stream()
-                            .filter(route -> route.getParent() == null)
-                            .collect(java.util.stream.Collectors.toList());
-                }
-
-                // 如果没有路由（或部门没有配置路由），分配默认路由：Dashboard + Form
-                if (routes.isEmpty()) {
-                    com.artdesign.backend.entity.Route dashboard = routeRepository.findAll().stream()
-                            .filter(r -> "Dashboard".equals(r.getName()))
-                            .findFirst().orElse(null);
-                    if (dashboard != null) {
-                        routes.add(dashboard);
-                    }
-
-                    com.artdesign.backend.entity.Route form = routeRepository.findAll().stream()
-                            .filter(r -> "Form".equals(r.getName()))
-                            .findFirst().orElse(null);
-                    if (form != null) {
-                        routes.add(form);
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 } else {
-                    // 确保 Dashboard 始终存在
-                    boolean hasDashboard = routes.stream().anyMatch(r -> "Dashboard".equals(r.getName()));
-                    if (!hasDashboard) {
-                        com.artdesign.backend.entity.Route dash = routeRepository.findAll().stream()
+                    // 非管理员：查看部门路由
+                    if (user.getDepartment() != null && user.getDepartment().getRoutes() != null
+                            && !user.getDepartment().getRoutes().isEmpty()) {
+                        // 只获取一级菜单（父菜单为 null 的路由）
+                        // 一级菜单会自动包含它们的子菜单
+                        List<com.artdesign.backend.entity.Route> allDeptRoutes = new ArrayList<>(
+                                user.getDepartment().getRoutes());
+                        // 过滤出一级菜单
+                        routes = allDeptRoutes.stream()
+                                .filter(route -> route.getParent() == null)
+                                .collect(java.util.stream.Collectors.toList());
+                    }
+
+                    // 如果没有路由（或部门没有配置路由），分配默认路由：Dashboard + Form
+                    if (routes.isEmpty()) {
+                        com.artdesign.backend.entity.Route dashboard = routeRepository.findAll().stream()
                                 .filter(r -> "Dashboard".equals(r.getName()))
                                 .findFirst().orElse(null);
-                        if (dash != null)
-                            routes.add(0, dash);
+                        if (dashboard != null) {
+                            routes.add(dashboard);
+                        }
+
+                        com.artdesign.backend.entity.Route form = routeRepository.findAll().stream()
+                                .filter(r -> "Form".equals(r.getName()))
+                                .findFirst().orElse(null);
+                        if (form != null) {
+                            routes.add(form);
+                        }
+                    } else {
+                        // 确保 Dashboard 始终存在
+                        boolean hasDashboard = routes.stream().anyMatch(r -> "Dashboard".equals(r.getName()));
+                        if (!hasDashboard) {
+                            com.artdesign.backend.entity.Route dash = routeRepository.findAll().stream()
+                                    .filter(r -> "Dashboard".equals(r.getName()))
+                                    .findFirst().orElse(null);
+                            if (dash != null)
+                                routes.add(0, dash);
+                        }
                     }
                 }
             }
-        }
 
-        // 转换为结果 map
-        List<Map<String, Object>> resultRoutes = convertRoutes(routes);
+            // 转换为结果 map
+            List<Map<String, Object>> resultRoutes = convertRoutes(routes);
 
-        // 后处理：非管理员过滤表单审批菜单
-        boolean isDeptLeader = false;
-        if (user != null && user.getDepartment() != null) {
-            Long userId = user.getId();
-            Long leaderId = user.getDepartment().getLeaderId();
-            if (leaderId != null) {
-                isDeptLeader = userId.equals(leaderId);
-            }
-            if (!isDeptLeader && user.getPosition() != null) {
-                String posCode = user.getPosition().getCode();
-                if ("DEPT_MANAGER".equals(posCode) || "GM".equals(posCode)) {
-                    isDeptLeader = true;
+            // 后处理：非管理员过滤表单审批菜单
+            boolean isDeptLeader = false;
+            if (user != null && user.getDepartment() != null) {
+                Long userId = user.getId();
+                Long leaderId = user.getDepartment().getLeaderId();
+                if (leaderId != null) {
+                    isDeptLeader = userId.equals(leaderId);
+                }
+                if (!isDeptLeader && user.getPosition() != null) {
+                    String posCode = user.getPosition().getCode();
+                    if ("DEPT_MANAGER".equals(posCode) || "GM".equals(posCode)) {
+                        isDeptLeader = true;
+                    }
                 }
             }
+
+            // 动态判断管理员
+            boolean finalIsAdmin = user != null && user.getRoles().stream()
+                    .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
+
+            if (!finalIsAdmin) {
+                filterFormApproval(resultRoutes, isDeptLeader);
+            }
+
+            result.put("code", 200);
+            result.put("msg", "success");
+            result.put("data", resultRoutes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("code", 500);
+            result.put("msg", "Inner Error: " + e.getMessage());
+
+            // Generate full stack trace to message
+            java.io.StringWriter sw = new java.io.StringWriter();
+            e.printStackTrace(new java.io.PrintWriter(sw));
+            result.put("stackTrace", sw.toString());
         }
-
-        // 动态判断管理员
-        boolean finalIsAdmin = user != null && user.getRoles().stream()
-                .anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
-
-        if (!finalIsAdmin) {
-            filterFormApproval(resultRoutes, isDeptLeader);
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("code", 200);
-        result.put("msg", "success");
-        result.put("data", resultRoutes);
 
         return result;
     }
