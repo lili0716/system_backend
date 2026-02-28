@@ -28,8 +28,8 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
             "/api/auth/register",
             "/api/auth/forget-password",
             "/api/test",
-            "/api/actuator"
-    );
+            "/api/actuator",
+            "/api/init");
 
     public AuthorizationInterceptor(JwtUtil jwtUtil, UserService userService) {
         this.jwtUtil = jwtUtil;
@@ -37,7 +37,8 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+            throws Exception {
         String requestUri = request.getRequestURI();
 
         // 排除不需要权限校验的路径
@@ -49,6 +50,11 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
 
         // 获取 Authorization 头
         String token = request.getHeader("Authorization");
+
+        // 兼容 SSE (EventSource 等无法携带 Header 的场景)，尝试从 URL Query 提取 token 参数
+        if (token == null || token.isEmpty()) {
+            token = request.getParameter("token");
+        }
 
         // 检查 token 是否存在
         if (token == null || token.isEmpty()) {
@@ -76,11 +82,12 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
             // 权限校验逻辑
             // 这里可以根据具体的业务需求和权限体系进行扩展
             // 例如：检查用户是否拥有当前接口的权限
-            
+
             // 示例：检查用户是否为管理员（如果接口需要管理员权限）
-            // boolean isAdmin = user.getRoles().stream().anyMatch(r -> Boolean.TRUE.equals(r.getIsAdmin()));
+            // boolean isAdmin = user.getRoles().stream().anyMatch(r ->
+            // Boolean.TRUE.equals(r.getIsAdmin()));
             // if (!isAdmin) {
-            //     return handleForbidden(response, "权限不足");
+            // return handleForbidden(response, "权限不足");
             // }
 
             // 将用户信息存储到请求中，供后续业务代码使用

@@ -1,4 +1,4 @@
-User 20950 is Admin. Fetching all top-level routes.
+User SuperAdmin is Admin. Fetching all top-level routes.
 Found top-level routes: 7
 Route: Console, Path: /dashboard, Roles: [R_SUPER, R_ADMIN]
   Children of Console: 0
@@ -21,11 +21,14 @@ Route: Form, Path: /form, Roles: [R_SUPER, R_ADMIN, R_USER]
     - FormApplication (application), Roles: [R_SUPER, R_ADMIN, R_USER]
     - FormApproval (approval), Roles: [R_SUPER, R_ADMIN, R_USER]
 Route: Attendance, Path: /attendance, Roles: [R_SUPER, R_ADMIN]
-  Children of Attendance: 4
+  Children of Attendance: 7
     - AttendanceUpload (upload), Roles: [R_SUPER, R_ADMIN]
     - AttendanceQuery (query), Roles: [R_SUPER, R_ADMIN, R_USER]
     - AttendanceRule (rule), Roles: [R_SUPER, R_ADMIN]
     - AttendanceSchedule (schedule), Roles: [R_SUPER, R_ADMIN]
+    - ShiftType (shift-type), Roles: [R_SUPER, R_ADMIN]
+    - AttendanceDailyReport (daily-report), Roles: [R_SUPER, R_ADMIN, R_USER]
+    - AttendanceMonthlyReport (monthly-report), Roles: [R_SUPER, R_ADMIN, R_USER]
 Route: Ops, Path: /ops, Roles: [R_SUPER, R_ADMIN]
   Children of Ops: 2
     - ServerOps (server), Roles: [R_SUPER, R_ADMIN]

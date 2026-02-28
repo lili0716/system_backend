@@ -16,6 +16,8 @@ public interface ShiftScheduleRepository extends JpaRepository<ShiftSchedule, Lo
 
     List<ShiftSchedule> findByYearAndMonth(int year, int month);
 
+    List<ShiftSchedule> findByYearAndMonthAndEmployeeIdIn(int year, int month, List<String> employeeIds);
+
     List<ShiftSchedule> findByYearAndMonthAndEmployeeId(int year, int month, String employeeId);
 
     Optional<ShiftSchedule> findByYearAndMonthAndDayAndEmployeeId(int year, int month, int day, String employeeId);

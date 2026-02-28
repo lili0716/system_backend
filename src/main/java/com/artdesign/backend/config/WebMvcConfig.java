@@ -27,11 +27,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // 权限校验拦截器（先执行）
         registry.addInterceptor(new AuthorizationInterceptor(jwtUtil, userService))
                 .addPathPatterns("/api/**", "/**")
-                .excludePathPatterns("/api/auth/login", "/api/auth/register", "/api/auth/forget-password", "/api/test", "/api/actuator/**");
+                .excludePathPatterns("/api/auth/login", "/api/auth/register", "/api/auth/forget-password", "/api/test",
+                        "/api/actuator/**", "/api/init/**");
 
         // API 调用日志拦截器
         registry.addInterceptor(new ApiLoggingInterceptor(systemLogRepository, jwtUtil, userService))
                 .addPathPatterns("/api/**", "/**")
-                .excludePathPatterns("/api/actuator/**");
+                .excludePathPatterns("/api/actuator/**", "/api/init/**");
     }
 }

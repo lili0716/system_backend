@@ -7,9 +7,20 @@ import com.artdesign.backend.repository.ShiftScheduleRepository;
 import com.artdesign.backend.repository.ShiftTypeRepository;
 import com.artdesign.backend.repository.UserRepository;
 import com.artdesign.backend.service.HolidayService;
+import com.artdesign.backend.util.JwtUtil;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.InputStream;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 
 import java.time.YearMonth;
 import java.util.*;
@@ -30,6 +41,12 @@ public class ShiftController {
 
     @Autowired
     private HolidayService holidayService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     // ===== 班次类型管理 =====
 
@@ -95,6 +112,7 @@ public class ShiftController {
     @GetMapping("/month")
     public Map<String, Object> getMonthSchedule(@RequestParam int year, @RequestParam int month,
             @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) String employeeIds,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
         Map<String, Object> result = new HashMap<>();
@@ -108,8 +126,19 @@ public class ShiftController {
         } else {
             allEmployees = userRepository.findAll();
         }
+
+        Set<String> empParamsSet = null;
+        if (employeeIds != null && !employeeIds.trim().isEmpty()) {
+            empParamsSet = java.util.Arrays.stream(employeeIds.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
+        }
+        final Set<String> targetIds = empParamsSet;
+
         allEmployees = allEmployees.stream()
                 .filter(u -> u.getStatus() == null || "1".equals(u.getStatus()) || !"0".equals(u.getStatus()))
+                .filter(u -> targetIds == null || targetIds.contains(u.getEmployeeId()))
                 .sorted(Comparator.comparing(User::getEmployeeId))
                 .collect(Collectors.toList());
 
@@ -128,14 +157,17 @@ public class ShiftController {
             return emp;
         }).collect(Collectors.toList());
 
-        // 只查询当页员工的排班数据，减少无效数据量
-        Set<String> pageEmployeeIds = pageEmployees.stream()
+        // 只查询当页员工的排班数据，减少无效数据量 (使用 IN 条件避免海量回表读取)
+        List<String> pageEmployeeIdList = pageEmployees.stream()
                 .map(User::getEmployeeId)
-                .collect(Collectors.toSet());
-        List<ShiftSchedule> schedules = shiftScheduleRepository.findByYearAndMonth(year, month)
-                .stream()
-                .filter(s -> pageEmployeeIds.contains(s.getEmployeeId()))
                 .collect(Collectors.toList());
+
+        List<ShiftSchedule> schedules;
+        if (pageEmployeeIdList.isEmpty()) {
+            schedules = new java.util.ArrayList<>();
+        } else {
+            schedules = shiftScheduleRepository.findByYearAndMonthAndEmployeeIdIn(year, month, pageEmployeeIdList);
+        }
 
         // 构建 employeeId -> { day -> shiftTypeId } 的映射
         Map<String, Map<Integer, Long>> scheduleMap = new HashMap<>();
@@ -174,75 +206,105 @@ public class ShiftController {
 
     // ===== 生成月排班 =====
 
-    @PostMapping("/generate")
-    @Transactional
-    public Map<String, Object> generateMonthSchedule(@RequestParam int year, @RequestParam int month) {
-        Map<String, Object> result = new HashMap<>();
+    @Autowired
+    private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
-        // 确保有班次类型
-        List<ShiftType> types = shiftTypeRepository.findAll();
-        if (types.isEmpty()) {
-            initDefaultShiftTypes();
-            types = shiftTypeRepository.findAll();
+    @Autowired
+    private com.artdesign.backend.service.ShiftGenerateService shiftGenerateService;
+
+    // ===== 异步长连接带进度条生成月排班 (Redis 分布式锁防护) =====
+    @GetMapping(value = "/generate", produces = "text/event-stream;charset=UTF-8")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter generateMonthScheduleParams(
+            @RequestParam int year, @RequestParam int month,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        String operator = "system";
+        String token = request.getHeader("Authorization");
+        if (token != null) {
+            String empIdStr = jwtUtil.getEmployeeId(token.startsWith("Bearer ") ? token.substring(7) : token);
+            if (empIdStr != null && !empIdStr.isEmpty())
+                operator = empIdStr;
         }
 
-        // 找到默认工作班次和休息班次
-        ShiftType workType = types.stream().filter(t -> Boolean.TRUE.equals(t.getIsDefault())).findFirst()
-                .orElse(types.stream().filter(t -> !Boolean.TRUE.equals(t.getIsRest())).findFirst().orElse(null));
-        ShiftType restType = types.stream().filter(t -> Boolean.TRUE.equals(t.getIsRest())).findFirst()
-                .orElse(null);
+        // SSE 断开超时：设定为 6 分钟极长待机时长。
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(
+                360000L);
 
-        if (workType == null || restType == null) {
-            result.put("code", 500);
-            result.put("msg", "班次类型配置不完整，请先配置工作班次和休息班次");
-            return result;
-        }
-
-        // 获取所有在职员工
-        List<User> employees = userRepository.findAll().stream()
-                .filter(u -> u.getStatus() == null || !"0".equals(u.getStatus()))
-                .collect(Collectors.toList());
-
-        // 批量预查询该月所有「手动」排班，构建 Set<"employeeId_day"> 避免 N×31 次单条查询
-        List<ShiftSchedule> manualSchedules = shiftScheduleRepository.findByYearAndMonth(year, month)
-                .stream()
-                .filter(s -> "MANUAL".equals(s.getSource()))
-                .collect(Collectors.toList());
-        Set<String> manualKeys = manualSchedules.stream()
-                .map(s -> s.getEmployeeId() + "_" + s.getDay())
-                .collect(Collectors.toSet());
-
-        // 删除该月已有的自动生成排班（保留手动调班）
-        shiftScheduleRepository.deleteAutoByYearAndMonth(year, month);
-
-        // 生成排班
-        int daysInMonth = YearMonth.of(year, month).lengthOfMonth();
-        List<ShiftSchedule> toSave = new ArrayList<>();
-
-        for (User emp : employees) {
-            for (int day = 1; day <= daysInMonth; day++) {
-                // 用预加载的 Set 判断是否已有手动排班，无需再查 DB
-                if (manualKeys.contains(emp.getEmployeeId() + "_" + day)) {
-                    continue;
-                }
-                boolean isRest = holidayService.isRestDay(year, month, day);
-                ShiftSchedule schedule = new ShiftSchedule();
-                schedule.setYear(year);
-                schedule.setMonth(month);
-                schedule.setDay(day);
-                schedule.setEmployeeId(emp.getEmployeeId());
-                schedule.setShiftTypeId(isRest ? restType.getId() : workType.getId());
-                schedule.setSource("AUTO");
-                toSave.add(schedule);
+        // 1. 全局 Redis 并发排他锁
+        String lockKey = "lock:shift_generate";
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "running", 15,
+                java.util.concurrent.TimeUnit.MINUTES);
+        if (Boolean.FALSE.equals(locked)) {
+            try {
+                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("error")
+                        .data(Map.of("code", 409, "msg", "系统正在全力为您所在的单位生成排班数据，请稍后刷新重试以免造成并发瘫痪。")));
+                emitter.complete();
+            } catch (Exception e) {
             }
+            return emitter;
         }
 
-        shiftScheduleRepository.saveAll(toSave);
+        try {
+            // 确保有班次类型
+            List<ShiftType> types = shiftTypeRepository.findAll();
+            if (types.isEmpty()) {
+                initDefaultShiftTypes();
+                types = shiftTypeRepository.findAll();
+            }
 
-        result.put("code", 200);
-        result.put("msg", "排班生成成功，共生成 " + toSave.size() + " 条记录");
-        result.put("data", Map.of("count", toSave.size(), "year", year, "month", month));
-        return result;
+            ShiftType workType = types.stream().filter(t -> Boolean.TRUE.equals(t.getIsDefault())).findFirst()
+                    .orElse(types.stream().filter(t -> !Boolean.TRUE.equals(t.getIsRest())).findFirst().orElse(null));
+            ShiftType restType = types.stream().filter(t -> Boolean.TRUE.equals(t.getIsRest())).findFirst()
+                    .orElse(null);
+
+            if (workType == null || restType == null) {
+                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("error")
+                        .data(Map.of("code", 500, "msg", "班次类型配置不完整，请先配置工作班次和休息班次")));
+                emitter.complete();
+                redisTemplate.delete(lockKey); // 前置出错解锁
+                return emitter;
+            }
+
+            // 获取所有在职员工
+            List<User> employees = userRepository.findAll().stream()
+                    .filter(u -> u.getStatus() == null || !"0".equals(u.getStatus()))
+                    .collect(Collectors.toList());
+
+            // 批量预查询该月所有「手动」排班字典
+            List<ShiftSchedule> manualSchedules = shiftScheduleRepository.findByYearAndMonth(year, month)
+                    .stream().filter(s -> "MANUAL".equals(s.getSource())).collect(Collectors.toList());
+            Set<String> manualKeys = manualSchedules.stream()
+                    .map(s -> s.getEmployeeId() + "_" + s.getDay())
+                    .collect(Collectors.toSet());
+
+            // 删除该月已有的自动生成排班（保留手动调班），以免覆盖出错
+            shiftScheduleRepository.deleteAutoByYearAndMonth(year, month);
+
+            // 预查当月全部节假日
+            Set<String> holidayStrs = new HashSet<>();
+            int daysInMonth = java.time.YearMonth.of(year, month).lengthOfMonth();
+            for (int d = 1; d <= daysInMonth; d++) {
+                if (holidayService.isRestDay(year, month, d)) {
+                    holidayStrs.add(String.format("%04d-%02d-%02d", year, month, d));
+                }
+            }
+
+            // 交由异步线程执行，当前 HTTP 线程携带 emitter 返回脱壳
+            shiftGenerateService.generateAsyncSchedules(
+                    year, month, operator, employees, workType, restType,
+                    manualKeys, holidayStrs, emitter, lockKey);
+
+        } catch (Exception e) {
+            try {
+                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("error")
+                        .data(Map.of("code", 500, "msg", "排班架构初始化出错: " + e.getMessage())));
+            } catch (Exception se) {
+            }
+            redisTemplate.delete(lockKey);
+            emitter.completeWithError(e);
+        }
+
+        return emitter;
     }
 
     // ===== 单格调班 =====
@@ -317,5 +379,201 @@ public class ShiftController {
         night.setIsDefault(false);
         night.setRemark("下午至晚间班次");
         shiftTypeRepository.save(night);
+    }
+
+    // ===== 获取导入模板 =====
+    @GetMapping("/template")
+    public void getScheduleTemplate(@RequestParam("year") int year, @RequestParam("month") int month,
+            HttpServletResponse response) {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("排班导入模板");
+            int daysInMonth = YearMonth.of(year, month).lengthOfMonth();
+
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("姓名");
+            headerRow.createCell(1).setCellValue("工号");
+
+            for (int day = 1; day <= daysInMonth; day++) {
+                headerRow.createCell(day + 1).setCellValue(day + "号");
+            }
+
+            // 制作每天单元格的班别下拉限制
+            List<ShiftType> allTypes = shiftTypeRepository.findAll();
+            if (allTypes.isEmpty()) {
+                initDefaultShiftTypes();
+                allTypes = shiftTypeRepository.findAll();
+            }
+            String[] shiftNames = allTypes.stream().map(ShiftType::getName).toArray(String[]::new);
+            if (shiftNames.length > 0) {
+                org.apache.poi.ss.usermodel.DataValidationHelper validationHelper = sheet.getDataValidationHelper();
+                org.apache.poi.ss.usermodel.DataValidationConstraint constraint = validationHelper
+                        .createExplicitListConstraint(shiftNames);
+                // 给第2列至最后1列的前1000行附加下拉框
+                org.apache.poi.ss.util.CellRangeAddressList addressList = new org.apache.poi.ss.util.CellRangeAddressList(
+                        1, 1000, 2, daysInMonth + 1);
+                org.apache.poi.ss.usermodel.DataValidation validation = validationHelper.createValidation(constraint,
+                        addressList);
+                validation.setShowErrorBox(true);
+                sheet.addValidationData(validation);
+            }
+
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition",
+                    "attachment; filename=\"schedule_template_" + year + "_" + month + ".xlsx\"");
+            workbook.write(response.getOutputStream());
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ===== 导入排班 =====
+    @PostMapping("/import")
+    @Transactional
+    public Map<String, Object> importSchedule(@RequestParam("file") MultipartFile file, @RequestParam("year") int year,
+            @RequestParam("month") int month, jakarta.servlet.http.HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+
+        String operator = "system";
+        String token = request.getHeader("Authorization");
+        if (token != null) {
+            String empIdStr = jwtUtil.getEmployeeId(token.startsWith("Bearer ") ? token.substring(7) : token);
+            if (empIdStr != null && !empIdStr.isEmpty()) {
+                operator = empIdStr;
+            }
+        }
+
+        try (InputStream is = file.getInputStream()) {
+            Workbook workbook = WorkbookFactory.create(is);
+            Sheet sheet = workbook.getSheetAt(0);
+
+            // 获取当月天数
+            int daysInMonth = YearMonth.of(year, month).lengthOfMonth();
+
+            // 预加载所有的 ShiftType 并通过 name 建立映射
+            List<ShiftType> allTypes = shiftTypeRepository.findAll();
+            if (allTypes.isEmpty()) {
+                initDefaultShiftTypes();
+                allTypes = shiftTypeRepository.findAll();
+            }
+            Map<String, ShiftType> typeMap = allTypes.stream()
+                    .collect(Collectors.toMap(t -> normalizeString(t.getName()), t -> t, (a, b) -> a));
+
+            // 兜底班次
+            ShiftType defaultRest = allTypes.stream().filter(t -> Boolean.TRUE.equals(t.getIsRest())).findFirst()
+                    .orElse(null);
+
+            // 预加载所有员工
+            Map<String, User> userMap = userRepository.findAll().stream()
+                    .collect(Collectors.toMap(User::getEmployeeId, u -> u, (a, b) -> a));
+
+            List<Object[]> batchArgs = new ArrayList<>();
+            Timestamp now = new Timestamp(System.currentTimeMillis());
+
+            int rowCount = sheet.getPhysicalNumberOfRows();
+            for (int i = 1; i < rowCount; i++) {
+                Row row = sheet.getRow(i);
+                if (row == null)
+                    continue;
+
+                Cell empIdCell = row.getCell(1);
+                if (empIdCell == null)
+                    continue;
+
+                String empId = getCellValueAsString(empIdCell).trim();
+                // 解决 POI 读取数字类型的异常 例如工号为 1001 被读成 1001.0
+                if (empId.endsWith(".0")) {
+                    empId = empId.substring(0, empId.length() - 2);
+                }
+
+                if (empId.isEmpty() || !userMap.containsKey(empId)) {
+                    continue; // 跨过无效工号
+                }
+
+                // 读取 1~daysInMonth 号的排班
+                for (int day = 1; day <= daysInMonth; day++) {
+                    // C列(索引2)对应 1号, 依此类推 索引为 day + 1
+                    Cell dayCell = row.getCell(day + 1);
+                    String shiftName = getCellValueAsString(dayCell).trim();
+                    if (shiftName.isEmpty())
+                        continue; // 为空时不填覆盖该天的排班，视为保留原始原数据
+
+                    String normalizedName = normalizeString(shiftName);
+                    ShiftType matchType = typeMap.get(normalizedName);
+
+                    if (matchType == null) {
+                        matchType = defaultRest;
+                    }
+
+                    if (matchType != null) {
+                        batchArgs.add(new Object[] {
+                                empId, year, month, day, matchType.getId(),
+                                "MANUAL", now, operator, now, operator
+                        });
+                    }
+                }
+            }
+
+            String sql = "INSERT INTO shift_schedules (employee_id, year, month, day, shift_type_id, source, create_time, create_by, update_time, update_by) "
+                    +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT (employee_id, year, month, day) " +
+                    "DO UPDATE SET shift_type_id = EXCLUDED.shift_type_id, source = 'MANUAL', update_time = EXCLUDED.update_time, update_by = EXCLUDED.update_by";
+
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    Object[] args = batchArgs.get(i);
+                    ps.setString(1, (String) args[0]);
+                    ps.setInt(2, (Integer) args[1]);
+                    ps.setInt(3, (Integer) args[2]);
+                    ps.setInt(4, (Integer) args[3]);
+                    ps.setLong(5, (Long) args[4]);
+                    ps.setString(6, (String) args[5]);
+                    ps.setTimestamp(7, (Timestamp) args[6]);
+                    ps.setString(8, (String) args[7]);
+                    ps.setTimestamp(9, (Timestamp) args[8]);
+                    ps.setString(10, (String) args[9]);
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return batchArgs.size();
+                }
+            });
+
+            result.put("code", 200);
+            result.put("msg", "成功导入 " + batchArgs.size() + " 条排班记录");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("code", 500);
+            result.put("msg", "解析 Excel 失败: " + e.getMessage());
+        }
+        return result;
+    }
+
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null)
+            return "";
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getLocalDateTimeCellValue().toString();
+                }
+                return String.valueOf(cell.getNumericCellValue());
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            default:
+                return "";
+        }
+    }
+
+    private String normalizeString(String s) {
+        if (s == null)
+            return "";
+        return s.trim().toLowerCase();
     }
 }

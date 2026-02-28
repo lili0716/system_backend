@@ -84,15 +84,21 @@ public class ApiLoggingInterceptor implements HandlerInterceptor {
                 }
             }
 
+            String contentType = request.getContentType();
+            boolean isMultipart = contentType != null && contentType.toLowerCase().startsWith("multipart/form-data");
+
             // 读取请求体
-            if (request instanceof ContentCachingRequestWrapper) {
+            if (isMultipart) {
+                log.setRequestParams("[Multipart File Upload]");
+            } else if (request instanceof ContentCachingRequestWrapper) {
                 ContentCachingRequestWrapper wrappedRequest = (ContentCachingRequestWrapper) request;
                 byte[] body = wrappedRequest.getContentAsByteArray();
                 if (body.length > 0) {
-                    log.setRequestParams(truncate(new String(body, StandardCharsets.UTF_8), 2000));
+                    String bodyStr = new String(body, StandardCharsets.UTF_8).replace("\0", "");
+                    log.setRequestParams(truncate(bodyStr, 2000));
                 }
             }
-            // 如果不是 wrapped 的请求，尝试获取 query string
+            // 如果不是 wrapped 的请求且没有参数记录，尝试获取 query string
             if (log.getRequestParams() == null || log.getRequestParams().isEmpty()) {
                 String queryString = request.getQueryString();
                 if (queryString != null && !queryString.isEmpty()) {
@@ -105,7 +111,8 @@ public class ApiLoggingInterceptor implements HandlerInterceptor {
                 ContentCachingResponseWrapper wrappedResponse = (ContentCachingResponseWrapper) response;
                 byte[] body = wrappedResponse.getContentAsByteArray();
                 if (body.length > 0) {
-                    log.setResponseBody(truncate(new String(body, StandardCharsets.UTF_8), 2000));
+                    String resBodyStr = new String(body, StandardCharsets.UTF_8).replace("\0", "");
+                    log.setResponseBody(truncate(resBodyStr, 2000));
                 }
             }
 

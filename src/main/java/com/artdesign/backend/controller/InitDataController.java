@@ -461,7 +461,16 @@ public class InitDataController {
         schedule.setMeta(createMeta("排班管理", null, List.of("R_SUPER", "R_ADMIN")));
         schedule.getMeta().setKeepAlive(true);
 
-        att.setChildren(new ArrayList<>(List.of(upload, query, rule, schedule)));
+        Route dailyReport = createRoute("AttendanceDailyReport", "daily-report", "/attendance/daily-report", att);
+        dailyReport.setMeta(createMeta("考勤日报", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
+        dailyReport.getMeta().setKeepAlive(true);
+
+        Route monthlyReport = createRoute("AttendanceMonthlyReport", "monthly-report", "/attendance/monthly-report",
+                att);
+        monthlyReport.setMeta(createMeta("考勤月报", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
+        monthlyReport.getMeta().setKeepAlive(true);
+
+        att.setChildren(new ArrayList<>(List.of(upload, query, rule, schedule, dailyReport, monthlyReport)));
         routeRepository.save(att);
 
         // 6. Ops
@@ -661,6 +670,59 @@ public class InitDataController {
 
         result.put("code", 200);
         result.put("msg", "运维管理路由初始化成功");
+        return result;
+    }
+
+    /**
+     * 追加考勤报表路由（补丁）
+     */
+    @GetMapping("/attendance-report-routes")
+    @Transactional
+    public java.util.Map<String, Object> initAttendanceReportRoutes() {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+
+        // 查找考勤父路由
+        Route attRoute = routeRepository.findAll().stream()
+                .filter(r -> "Attendance".equals(r.getName()))
+                .findFirst()
+                .orElse(null);
+
+        if (attRoute == null) {
+            result.put("code", 404);
+            result.put("msg", "未找到考勤管理(Attendance)父路由");
+            return result;
+        }
+
+        boolean dailyExists = attRoute.getChildren().stream()
+                .anyMatch(r -> "AttendanceDailyReport".equals(r.getName()));
+        boolean monthlyExists = attRoute.getChildren().stream()
+                .anyMatch(r -> "AttendanceMonthlyReport".equals(r.getName()));
+
+        if (dailyExists && monthlyExists) {
+            result.put("code", 200);
+            result.put("msg", "报表路由已存在，跳过");
+            return result;
+        }
+
+        if (!dailyExists) {
+            Route dailyReport = createRoute("AttendanceDailyReport", "daily-report", "/attendance/daily-report",
+                    attRoute);
+            dailyReport.setMeta(createMeta("考勤日报", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
+            dailyReport.getMeta().setKeepAlive(true);
+            attRoute.getChildren().add(dailyReport);
+        }
+
+        if (!monthlyExists) {
+            Route monthlyReport = createRoute("AttendanceMonthlyReport", "monthly-report", "/attendance/monthly-report",
+                    attRoute);
+            monthlyReport.setMeta(createMeta("考勤月报", null, List.of("R_SUPER", "R_ADMIN", "R_USER")));
+            monthlyReport.getMeta().setKeepAlive(true);
+            attRoute.getChildren().add(monthlyReport);
+        }
+
+        routeRepository.save(attRoute);
+        result.put("code", 200);
+        result.put("msg", "考勤报表路由追加成功");
         return result;
     }
 }

@@ -49,8 +49,14 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Autowired
     private com.artdesign.backend.repository.OvertimeFormRepository overtimeFormRepository;
 
-    // 文件保存路径
-    private static final String UPLOAD_DIR = "uploads/attendance/";
+    @Autowired
+    private com.artdesign.backend.repository.LeaveFormRepository leaveFormRepository;
+
+    @Autowired
+    private com.artdesign.backend.repository.ShiftScheduleRepository shiftScheduleRepository;
+
+    // 文件保存路径 (使用绝对路径避免 Tomcat 内置 temp 目录漂移)
+    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/attendance/";
 
     @Override
     public List<AttendanceRecord> findAllRecords() {
@@ -64,19 +70,29 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public AttendanceRecord saveRecord(AttendanceRecord record) {
-        // 计算实际工时
+        AttendanceRule rule = getEffectiveRule(record.getUser());
+        double stdHours = (rule != null && rule.getStandardWorkHours() != null) ? rule.getStandardWorkHours() : 8.0;
+
+        // 计算基础实际工时（最多不能超过标准工时）
         if (record.getWorkInTime() != null && record.getWorkOutTime() != null) {
-            record.setActualWorkHours(calculateWorkHours(record.getWorkInTime(), record.getWorkOutTime()));
+            double worked = calculateWorkHours(record.getWorkInTime(), record.getWorkOutTime());
+            record.setActualWorkHours(Math.min(worked, stdHours));
         }
-        // 计算考勤状态
+
+        // 计算初始考勤状态
         if (record.getWorkInTime() != null || record.getWorkOutTime() != null) {
-            AttendanceRule rule = getEffectiveRule(record.getUser());
             if (rule != null) {
                 record.setStatus(calculateAttendanceStatus(record.getWorkInTime(), record.getWorkOutTime(), rule));
+                calculateLateAndEarlyMinutes(record, rule);
             }
         }
-        // 处理加班逻辑
+
+        // 依次执行请假冲销与加班核算叠加
+        if (rule != null) {
+            applyLeaveLogic(record, rule);
+        }
         applyOvertimeLogic(record);
+
         return attendanceRecordRepository.save(record);
     }
 
@@ -400,19 +416,30 @@ public class AttendanceServiceImpl implements AttendanceService {
                         record.setDayOfWeek(normalizedDayOfWeek);
 
                         // 计算工时和状态
+                        double stdHours = (rule != null && rule.getStandardWorkHours() != null)
+                                ? rule.getStandardWorkHours()
+                                : 8.0;
                         if (workInTime != null && workOutTime != null) {
-                            record.setActualWorkHours(calculateWorkHours(workInTime, workOutTime));
+                            double worked = calculateWorkHours(workInTime, workOutTime);
+                            record.setActualWorkHours(Math.min(worked, stdHours));
                         } else if (workInTime == null && workOutTime == null) {
                             record.setActualWorkHours(0.0);
                         } else {
                             // 有一个为空，估算工时
-                            record.setActualWorkHours(calculatePartialWorkHours(workInTime, workOutTime, rule));
+                            double partial = calculatePartialWorkHours(workInTime, workOutTime, rule);
+                            record.setActualWorkHours(Math.min(partial, stdHours));
                         }
 
                         record.setStatus(calculateAttendanceStatus(workInTime, workOutTime, rule));
 
                         // 计算迟到/早退分钟数
                         calculateLateAndEarlyMinutes(record, rule);
+
+                        // 应用请假与加班关联冲销计算
+                        if (rule != null) {
+                            applyLeaveLogic(record, rule);
+                        }
+                        applyOvertimeLogic(record);
 
                         AttendanceRecord savedRecord = attendanceRecordRepository.save(record);
 
@@ -484,84 +511,25 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     /**
-     * 计算上班打卡时间：取规定上班时间之前的最早一次打卡
+     * 计算上班打卡时间：取当天最早的打卡记录
      */
     private Date calculateWorkInTime(List<Date> punchTimes, AttendanceRule rule) {
         if (punchTimes == null || punchTimes.isEmpty())
             return null;
-
-        Date ruleWorkInTime = rule.getWorkInTime();
-        Calendar ruleCal = Calendar.getInstance();
-        ruleCal.setTime(ruleWorkInTime);
-        int ruleHour = ruleCal.get(Calendar.HOUR_OF_DAY);
-        int ruleMinute = ruleCal.get(Calendar.MINUTE);
-
-        Date earliestBeforeWorkIn = null;
-        Date earliestAfterWorkIn = null;
-
-        for (Date punchTime : punchTimes) {
-            Calendar punchCal = Calendar.getInstance();
-            punchCal.setTime(punchTime);
-            int punchHour = punchCal.get(Calendar.HOUR_OF_DAY);
-            int punchMinute = punchCal.get(Calendar.MINUTE);
-
-            // 判断是否在规定上班时间之前（或之后一小段时间内）
-            int punchTotalMinutes = punchHour * 60 + punchMinute;
-            int ruleTotalMinutes = ruleHour * 60 + ruleMinute;
-
-            if (punchTotalMinutes <= ruleTotalMinutes + 30) { // 规定上班时间后30分钟内的都算上班打卡
-                if (earliestBeforeWorkIn == null || punchTime.before(earliestBeforeWorkIn)) {
-                    earliestBeforeWorkIn = punchTime;
-                }
-            } else {
-                if (earliestAfterWorkIn == null || punchTime.before(earliestAfterWorkIn)) {
-                    earliestAfterWorkIn = punchTime;
-                }
-            }
-        }
-
-        // 优先返回规定时间前的打卡，否则返回之后的最早打卡
-        return earliestBeforeWorkIn != null ? earliestBeforeWorkIn : earliestAfterWorkIn;
+        return Collections.min(punchTimes);
     }
 
     /**
-     * 计算下班打卡时间：取规定下班时间之后的第一次打卡
+     * 计算下班打卡时间：取当天最晚的打卡记录（只有一次打卡时为空）
      */
     private Date calculateWorkOutTime(List<Date> punchTimes, AttendanceRule rule) {
-        if (punchTimes == null || punchTimes.isEmpty())
+        if (punchTimes == null || punchTimes.size() < 2)
             return null;
-
-        Date ruleWorkOutTime = rule.getWorkOutTime();
-        Calendar ruleCal = Calendar.getInstance();
-        ruleCal.setTime(ruleWorkOutTime);
-        int ruleHour = ruleCal.get(Calendar.HOUR_OF_DAY);
-        int ruleMinute = ruleCal.get(Calendar.MINUTE);
-
-        Date earliestAfterWorkOut = null;
-        Date latestBeforeWorkOut = null;
-
-        for (Date punchTime : punchTimes) {
-            Calendar punchCal = Calendar.getInstance();
-            punchCal.setTime(punchTime);
-            int punchHour = punchCal.get(Calendar.HOUR_OF_DAY);
-            int punchMinute = punchCal.get(Calendar.MINUTE);
-
-            int punchTotalMinutes = punchHour * 60 + punchMinute;
-            int ruleTotalMinutes = ruleHour * 60 + ruleMinute;
-
-            if (punchTotalMinutes >= ruleTotalMinutes - 30) { // 规定下班时间前30分钟内的都算下班打卡
-                if (earliestAfterWorkOut == null || punchTime.before(earliestAfterWorkOut)) {
-                    earliestAfterWorkOut = punchTime;
-                }
-            } else {
-                if (latestBeforeWorkOut == null || punchTime.after(latestBeforeWorkOut)) {
-                    latestBeforeWorkOut = punchTime;
-                }
-            }
-        }
-
-        // 优先返回规定时间后的第一次打卡
-        return earliestAfterWorkOut != null ? earliestAfterWorkOut : latestBeforeWorkOut;
+        Date max = Collections.max(punchTimes);
+        Date min = Collections.min(punchTimes);
+        if (max.equals(min))
+            return null;
+        return max;
     }
 
     /**
@@ -815,7 +783,6 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (record.getUser() == null || record.getRecordDate() == null)
             return;
 
-        // 获取当天起止时间
         Calendar cal = Calendar.getInstance();
         cal.setTime(record.getRecordDate());
         cal.set(Calendar.HOUR_OF_DAY, 0);
@@ -823,24 +790,13 @@ public class AttendanceServiceImpl implements AttendanceService {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         Date startOfDay = cal.getTime();
-
         cal.set(Calendar.HOUR_OF_DAY, 23);
         cal.set(Calendar.MINUTE, 59);
         cal.set(Calendar.SECOND, 59);
         Date endOfDay = cal.getTime();
 
-        // 查询审批通过的加班申请
         List<com.artdesign.backend.entity.OvertimeForm> forms = overtimeFormRepository
-                .findApprovedFormsByApplicantAndDateRange(
-                        record.getUser().getId(), startOfDay, endOfDay);
-
-        System.out.println(
-                "DEBUG: applyOvertimeLogic userId=" + record.getUser().getId() + " date=" + record.getRecordDate());
-        System.out.println("DEBUG: Forms found: " + forms.size());
-        if (!forms.isEmpty()) {
-            System.out.println(
-                    "DEBUG: Form[0] start=" + forms.get(0).getStartTime() + " end=" + forms.get(0).getEndTime());
-        }
+                .findApprovedFormsByApplicantAndDateRange(record.getUser().getId(), startOfDay, endOfDay);
 
         if (forms.isEmpty()) {
             record.setOvertimeHours(0.0);
@@ -848,31 +804,29 @@ public class AttendanceServiceImpl implements AttendanceService {
             return;
         }
 
-        // 假设同一天只有一个加班申请，取第一个
         com.artdesign.backend.entity.OvertimeForm form = forms.get(0);
 
         if (record.getWorkInTime() != null && record.getWorkOutTime() != null) {
-            // Normalize times to recordDate (handle 1970-01-01 issue from JSON)
             Date workIn = normalizeTime(record.getWorkInTime(), record.getRecordDate());
             Date workOut = normalizeTime(record.getWorkOutTime(), record.getRecordDate());
-            if (workIn.after(workOut)) { // Handle overnight (assume next day)
+            if (workIn.after(workOut)) {
                 Calendar c = Calendar.getInstance();
                 c.setTime(workOut);
                 c.add(Calendar.DAY_OF_MONTH, 1);
                 workOut = c.getTime();
             }
-            // Update record with normalized times (optional, but good for consistency)
-            record.setWorkInTime(workIn);
-            record.setWorkOutTime(workOut);
 
-            // 计算加班工时：考勤打卡时间段与加班申请时间段的交集
-            double hours = calculateOvertimeIntersection(
-                    workIn, workOut,
-                    form.getStartTime(), form.getEndTime());
+            double hours = calculateOvertimeIntersection(workIn, workOut, form.getStartTime(), form.getEndTime());
             record.setOvertimeHours(hours);
 
-            // 检查早退异常：打卡下班时间早于申请结束时间
-            // 只要打卡时间比申请结束时间早 1 分钟以上，就算早退
+            // 核心变动：将工时加上加班工时且在备注中标注加班时间
+            if (hours > 0) {
+                record.setActualWorkHours(
+                        (record.getActualWorkHours() != null ? record.getActualWorkHours() : 0.0) + hours);
+                String oldRm = record.getRemark() != null ? record.getRemark() + " | " : "";
+                record.setRemark(oldRm + "加班时长: " + String.format("%.1f", hours) + "h");
+            }
+
             if (workOut.getTime() < form.getEndTime().getTime() - 60 * 1000) {
                 record.setOvertimeException(true);
             } else {
@@ -880,8 +834,84 @@ public class AttendanceServiceImpl implements AttendanceService {
             }
         } else {
             record.setOvertimeHours(0.0);
-            record.setOvertimeException(true); // 无打卡记录视为异常
+            record.setOvertimeException(true);
         }
+    }
+
+    /**
+     * 应用请假逻辑
+     */
+    private void applyLeaveLogic(AttendanceRecord record, AttendanceRule rule) {
+        if (record.getUser() == null || record.getRecordDate() == null)
+            return;
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(record.getRecordDate());
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        Date startOfDay = cal.getTime();
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        Date endOfDay = cal.getTime();
+
+        List<com.artdesign.backend.entity.LeaveForm> forms = leaveFormRepository
+                .findApprovedLeavesByUserIdAndDateRange(record.getUser().getId(), 1, startOfDay, endOfDay);
+
+        if (forms.isEmpty())
+            return;
+
+        com.artdesign.backend.entity.LeaveForm form = forms.get(0);
+        double stdHours = rule.getStandardWorkHours() != null ? rule.getStandardWorkHours() : 8.0;
+
+        // 简单计算请假时长 (默认如果涵盖当天则用天数占比推算小时)
+        double leaveDuration = stdHours;
+        if (form.getLeaveDays() != null && form.getLeaveDays() < 1.0) {
+            leaveDuration = form.getLeaveDays() * stdHours;
+        }
+        if (leaveDuration > stdHours)
+            leaveDuration = stdHours;
+
+        // 核心变动：有请假，用8h减去请假时间
+        record.setActualWorkHours(stdHours - leaveDuration);
+
+        // 核心变动：综合请假表数据综合判断考勤状态 (设定状态值为4为请假标志位) 冲销原本的迟到早退分钟缺漏
+        record.setStatus(4);
+        record.setLateMinutes(0);
+        record.setEarlyLeaveMinutes(0);
+
+        String typeName = "";
+        switch (form.getLeaveType() != null ? form.getLeaveType() : 1) {
+            case 1:
+                typeName = "事假";
+                break;
+            case 2:
+                typeName = "病假";
+                break;
+            case 3:
+                typeName = "产假";
+                break;
+            case 4:
+                typeName = "婚假";
+                break;
+            case 5:
+                typeName = "丧假";
+                break;
+            case 6:
+                typeName = "年假";
+                break;
+            case 7:
+                typeName = "调休";
+                break;
+            default:
+                typeName = "请假";
+                break;
+        }
+
+        String oldRm = record.getRemark() != null ? record.getRemark() + " | " : "";
+        record.setRemark(oldRm + typeName + ": " + String.format("%.1f", leaveDuration) + "h");
     }
 
     private Date normalizeTime(Date time, Date date) {

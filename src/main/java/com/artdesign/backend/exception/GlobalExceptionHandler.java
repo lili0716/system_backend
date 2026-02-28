@@ -5,10 +5,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.HttpStatus;
+
+import com.artdesign.backend.common.Result;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -16,15 +17,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ResponseBody
-    public Map<String, Object> handleAllExceptions(Exception ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", 500);
-        response.put("msg", ex.getMessage());
-        
+    public Result<String> handleAllExceptions(Exception ex) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         ex.printStackTrace(pw);
-        response.put("stackTrace", sw.toString());
-        return response;
+
+        // 建议仅在开发环境下回传 stackTrace
+        // 这里主要保证向前台暴露错误信息和对应的 500 Code
+        return Result.error(500, ex.getMessage());
     }
 }
