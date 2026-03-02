@@ -212,9 +212,9 @@ public class ShiftController {
     @Autowired
     private com.artdesign.backend.service.ShiftGenerateService shiftGenerateService;
 
-    // ===== 异步长连接带进度条生成月排班 (Redis 分布式锁防护) =====
-    @GetMapping(value = "/generate", produces = "text/event-stream;charset=UTF-8")
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter generateMonthScheduleParams(
+    // ===== 异步启动排班生成 (返回 taskId，基于 Redis 分布式锁与轮询) =====
+    @GetMapping(value = "/generate")
+    public Map<String, Object> generateMonthScheduleParams(
             @RequestParam int year, @RequestParam int month,
             jakarta.servlet.http.HttpServletRequest request) {
 
@@ -226,22 +226,28 @@ public class ShiftController {
                 operator = empIdStr;
         }
 
-        // SSE 断开超时：设定为 6 分钟极长待机时长。
-        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(
-                360000L);
+        Map<String, Object> result = new HashMap<>();
 
         // 1. 全局 Redis 并发排他锁
         String lockKey = "lock:shift_generate";
         Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "running", 15,
                 java.util.concurrent.TimeUnit.MINUTES);
         if (Boolean.FALSE.equals(locked)) {
-            try {
-                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("error")
-                        .data(Map.of("code", 409, "msg", "系统正在全力为您所在的单位生成排班数据，请稍后刷新重试以免造成并发瘫痪。")));
-                emitter.complete();
-            } catch (Exception e) {
-            }
-            return emitter;
+            result.put("code", 409);
+            result.put("msg", "系统正在全力为您所在的单位生成排班数据，请稍后刷新重试以免造成并发瘫痪。");
+            return result;
+        }
+
+        String taskId = UUID.randomUUID().toString();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        // 预设初始进度到 Redis (5分钟过期)
+        try {
+            redisTemplate.opsForValue().set("shift_progress:" + taskId,
+                    mapper.writeValueAsString(
+                            Map.of("progress", 0, "message", "正在初始化...", "complete", false, "error", false)),
+                    5, java.util.concurrent.TimeUnit.MINUTES);
+        } catch (Exception e) {
         }
 
         try {
@@ -258,11 +264,10 @@ public class ShiftController {
                     .orElse(null);
 
             if (workType == null || restType == null) {
-                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("error")
-                        .data(Map.of("code", 500, "msg", "班次类型配置不完整，请先配置工作班次和休息班次")));
-                emitter.complete();
-                redisTemplate.delete(lockKey); // 前置出错解锁
-                return emitter;
+                redisTemplate.delete(lockKey);
+                result.put("code", 500);
+                result.put("msg", "班次类型配置不完整，请先配置工作班次和休息班次");
+                return result;
             }
 
             // 获取所有在职员工
@@ -289,22 +294,45 @@ public class ShiftController {
                 }
             }
 
-            // 交由异步线程执行，当前 HTTP 线程携带 emitter 返回脱壳
+            // 交由异步线程执行
             shiftGenerateService.generateAsyncSchedules(
                     year, month, operator, employees, workType, restType,
-                    manualKeys, holidayStrs, emitter, lockKey);
+                    manualKeys, holidayStrs, taskId, lockKey);
+
+            result.put("code", 200);
+            result.put("msg", "任务已投递执行");
+            result.put("data", Map.of("taskId", taskId));
 
         } catch (Exception e) {
-            try {
-                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("error")
-                        .data(Map.of("code", 500, "msg", "排班架构初始化出错: " + e.getMessage())));
-            } catch (Exception se) {
-            }
             redisTemplate.delete(lockKey);
-            emitter.completeWithError(e);
+            result.put("code", 500);
+            result.put("msg", "排班架构初始化出错: " + e.getMessage());
         }
 
-        return emitter;
+        return result;
+    }
+
+    // ===== 获取生成进度 =====
+    @GetMapping("/progress")
+    public Map<String, Object> getGenerateProgress(@RequestParam String taskId) {
+        Map<String, Object> result = new HashMap<>();
+        String json = redisTemplate.opsForValue().get("shift_progress:" + taskId);
+        if (json == null) {
+            result.put("code", 404);
+            result.put("msg", "任务已过期或不存在");
+            return result;
+        }
+
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> data = mapper.readValue(json, Map.class);
+            result.put("code", 200);
+            result.put("data", data);
+        } catch (Exception e) {
+            result.put("code", 500);
+            result.put("msg", "解析进度异常");
+        }
+        return result;
     }
 
     // ===== 单格调班 =====

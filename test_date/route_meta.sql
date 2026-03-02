@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict VG8Txi7AoGyNciFZHrKaAFex87J9ARetdYq9cFCg0TbJBJ5YnI1BX3OLgCOV2KY
+\restrict JfeAHghgrcjjpj5OxAOFmCbeObQyAUOKHedBpowRIU3U3qb9SDC7JHK72zwBzzK
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -94,6 +94,8 @@ COPY public.route_meta (id, active_path, auth_mark, fixed_tab, icon, is_auth_but
 819	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	t	\N	\N	\N	\N	考勤规则	\N	1
 820	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	t	\N	\N	\N	\N	排班管理	\N	1
 826	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	t	\N	\N	\N	\N	班别管理	\N	1
+827	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	t	\N	\N	\N	\N	考勤日报	\N	1
+828	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	t	\N	\N	\N	\N	考勤月报	\N	1
 \.
 
 
@@ -101,7 +103,7 @@ COPY public.route_meta (id, active_path, auth_mark, fixed_tab, icon, is_auth_but
 -- Name: route_meta_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.route_meta_id_seq', 826, true);
+SELECT pg_catalog.setval('public.route_meta_id_seq', 828, true);
 
 
 --
@@ -116,5 +118,5 @@ ALTER TABLE ONLY public.route_meta
 -- PostgreSQL database dump complete
 --
 
-\unrestrict VG8Txi7AoGyNciFZHrKaAFex87J9ARetdYq9cFCg0TbJBJ5YnI1BX3OLgCOV2KY
+\unrestrict JfeAHghgrcjjpj5OxAOFmCbeObQyAUOKHedBpowRIU3U3qb9SDC7JHK72zwBzzK
 

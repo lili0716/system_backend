@@ -5,7 +5,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/system?reWriteBatchedInserts=true
+    url: jdbc:postgresql://localhost:5432/system
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver

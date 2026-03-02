@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict zJq9uJghgFaXBBLjpuRJYiqhp9IGPNdGrKB6WNtK8WbsBuMIk0wU8uUb2xFmTRL
+\restrict 7kgQBtZEsCNWtNfOcgaMkVj6eNVSMZ8FwJ1MyEeiaFo5Rjw4bzVzccnjTKft2kq
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -41,7 +41,7 @@ CREATE TABLE public.punch_card_form (
     punch_date timestamp(6) without time zone,
     punch_time timestamp(6) without time zone,
     punch_type integer,
-    reason character varying(255),
+    reason character varying(500),
     location character varying(255),
     abnormal_record_ids character varying(500)
 );
@@ -83,5 +83,5 @@ ALTER TABLE ONLY public.punch_card_form
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zJq9uJghgFaXBBLjpuRJYiqhp9IGPNdGrKB6WNtK8WbsBuMIk0wU8uUb2xFmTRL
+\unrestrict 7kgQBtZEsCNWtNfOcgaMkVj6eNVSMZ8FwJ1MyEeiaFo5Rjw4bzVzccnjTKft2kq
 

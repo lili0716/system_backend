@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict dEXWwRKJmtY6hfHYXp7eLNtIZb2G8ghOpNUQLVw8bpN9ukw0nGdqp8lQ6C1Dn6d
+\restrict tgcZMH4pzC79QTsAzEiOy5Mu8ObTnxft7KkUAE8boGqS1bynbuoyl93FqPINXTr
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -93,6 +93,12 @@ COPY public.route_meta_roles (meta_id, role) FROM stdin;
 820	R_ADMIN
 826	R_SUPER
 826	R_ADMIN
+827	R_SUPER
+827	R_ADMIN
+827	R_USER
+828	R_SUPER
+828	R_ADMIN
+828	R_USER
 \.
 
 
@@ -108,5 +114,5 @@ ALTER TABLE ONLY public.route_meta_roles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict dEXWwRKJmtY6hfHYXp7eLNtIZb2G8ghOpNUQLVw8bpN9ukw0nGdqp8lQ6C1Dn6d
+\unrestrict tgcZMH4pzC79QTsAzEiOy5Mu8ObTnxft7KkUAE8boGqS1bynbuoyl93FqPINXTr
 

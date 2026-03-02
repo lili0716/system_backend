@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict XOwbrzaJAzD3MCRzoAj0kd6WNt9ryxtG2uyJvqQ9BD2Ynt53yBoNnu3pa0ylp4l
+\restrict pfXWTeYkbtPZg7unSZagjtCp52dbhf14bexWpcSgxaEXre9MjtR9uyvNNRmmIyz
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -81,6 +81,8 @@ COPY public.routes (id, component, name, path, meta_id, parent_id) FROM stdin;
 801	/ops/server-monitor	ServerOps	server	822	800
 802	/ops/system-log	SystemLogs	logs	823	800
 804	/attendance/shift-type	ShiftType	shift-type	826	795
+805	/attendance/daily-report	AttendanceDailyReport	daily-report	827	795
+806	/attendance/monthly-report	AttendanceMonthlyReport	monthly-report	828	795
 \.
 
 
@@ -88,7 +90,7 @@ COPY public.routes (id, component, name, path, meta_id, parent_id) FROM stdin;
 -- Name: routes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.routes_id_seq', 804, true);
+SELECT pg_catalog.setval('public.routes_id_seq', 806, true);
 
 
 --
@@ -127,5 +129,5 @@ ALTER TABLE ONLY public.routes
 -- PostgreSQL database dump complete
 --
 
-\unrestrict XOwbrzaJAzD3MCRzoAj0kd6WNt9ryxtG2uyJvqQ9BD2Ynt53yBoNnu3pa0ylp4l
+\unrestrict pfXWTeYkbtPZg7unSZagjtCp52dbhf14bexWpcSgxaEXre9MjtR9uyvNNRmmIyz
 

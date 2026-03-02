@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YIheassxkRxhiPcgpte6oWtXvIwykYk38tVEGjBOKmUOBW4bLUR7QnqhhO4q6Dj
+\restrict 4wf3bADpazxpErce50Tw5WWDeFmmmjMGouoN7MnUQcL3NH9WPrF6XXoa1bIfKFe
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -103,5 +103,5 @@ ALTER TABLE ONLY public.salaries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YIheassxkRxhiPcgpte6oWtXvIwykYk38tVEGjBOKmUOBW4bLUR7QnqhhO4q6Dj
+\unrestrict 4wf3bADpazxpErce50Tw5WWDeFmmmjMGouoN7MnUQcL3NH9WPrF6XXoa1bIfKFe
 

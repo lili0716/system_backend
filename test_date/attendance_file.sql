@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 8Y5kP2X2XKmgyzHYQnu3hbf2Ugfr8Al0vylLOJUrdfaMORLs6ruroddmByV1Vfr
+\restrict ojY5lumLptScVEV6XNZuWSifmmU24fWpc42atYZB7b2A8H5KQX0569yFcaSxf31
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -47,11 +47,7 @@ CREATE TABLE public.attendance_file (
 --
 
 COPY public.attendance_file (id, file_name, file_path, file_size, file_type, original_file_name, parse_result, parse_status, remark, upload_time, uploader_id) FROM stdin;
-52	780fec2e-ed55-44c6-9515-e502f2039e1a_1.1~11.xls	D:\\atd_mini\\backend\\uploads\\attendance\\780fec2e-ed55-44c6-9515-e502f2039e1a_1.1~11.xls	1580544	application/vnd.ms-excel	1.1~11.xls	解析成功，共生成 2942 条考勤记录	2	\N	\N	13224
-102	722a623c-0858-4cb7-8de6-353f2943d8af_1.12~18.xls	D:\\atd_mini\\backend\\uploads\\attendance\\722a623c-0858-4cb7-8de6-353f2943d8af_1.12~18.xls	1301504	application/vnd.ms-excel	1.12~18.xls	解析成功，共生成 2196 条考勤记录	2	\N	\N	13224
-152	cc6b3af8-55eb-4a85-899e-c5f03f980cd5_1.12~18.xls	D:\\atd_mini\\backend\\uploads\\attendance\\cc6b3af8-55eb-4a85-899e-c5f03f980cd5_1.12~18.xls	1301504	application/vnd.ms-excel	1.12~18.xls	解析成功，共生成 2196 条考勤记录	2	\N	\N	13224
-153	96e21966-f03a-4665-8320-4c4148683728_1.12~18.xls	D:\\atd_mini\\backend\\uploads\\attendance\\96e21966-f03a-4665-8320-4c4148683728_1.12~18.xls	1301504	application/vnd.ms-excel	1.12~18.xls	解析成功，共生成 2196 条考勤记录	2	\N	\N	13224
-202	f3506f7a-634b-49e3-b05b-43a7bf3e33f3_1.12~18.xls	D:\\atd_mini\\backend\\uploads\\attendance\\f3506f7a-634b-49e3-b05b-43a7bf3e33f3_1.12~18.xls	1301504	application/vnd.ms-excel	1.12~18.xls	解析成功，共生成 2196 条考勤记录	2	\N	\N	13224
+352	b9098353-f948-426b-b9bf-dad1ed5a2df6_1.1~11.xls	D:\\atd_mini\\backend/uploads/attendance/b9098353-f948-426b-b9bf-dad1ed5a2df6_1.1~11.xls	1580544	application/vnd.ms-excel	1.1~11.xls	解析完成，成功: 2942 条，失败: 304 条	2	\N	\N	13224
 \.
 
 
@@ -75,5 +71,5 @@ ALTER TABLE ONLY public.attendance_file
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 8Y5kP2X2XKmgyzHYQnu3hbf2Ugfr8Al0vylLOJUrdfaMORLs6ruroddmByV1Vfr
+\unrestrict ojY5lumLptScVEV6XNZuWSifmmU24fWpc42atYZB7b2A8H5KQX0569yFcaSxf31
 
