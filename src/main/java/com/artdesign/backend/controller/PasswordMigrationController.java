@@ -4,6 +4,7 @@ import com.artdesign.backend.entity.User;
 import com.artdesign.backend.entity.UserCredential;
 import com.artdesign.backend.repository.UserCredentialRepository;
 import com.artdesign.backend.service.UserService;
+import com.artdesign.backend.util.MD5Util;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,11 +55,11 @@ public class PasswordMigrationController {
                 // 从 users 表获取旧密码
                 String password = user.getPassword();
                 if (password == null || password.isEmpty()) {
-                    // 如果没有密码，设置默认密码 123456
-                    password = "123456";
+                    // 如果没有密码，设置默认密码 ringway123
+                    password = "ringway123";
                 }
 
-                UserCredential credential = new UserCredential(employeeId, password);
+                UserCredential credential = new UserCredential(employeeId, MD5Util.encrypt(password));
                 userCredentialRepository.save(credential);
                 migrated++;
             }

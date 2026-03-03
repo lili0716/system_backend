@@ -14,6 +14,7 @@ import com.artdesign.backend.repository.RouteRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
+import com.artdesign.backend.util.MD5Util;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -287,7 +288,8 @@ public class InitDataController {
             superAdmin.setNickName("Super Admin");
             superAdmin.setDepartment(gmDept); // Attach to GM or leave null
             superAdmin.setPosition(managerPos);
-            superAdmin.setPassword("123456"); // Or keep previous password if known, but resetting here
+            superAdmin.setPassword(MD5Util.encrypt("ringway123")); // Or keep previous password if known, but resetting
+                                                                   // here
             superAdmin.setStatus("1");
             superAdmin.setCreateTime(new Date());
             superAdmin.setRoles(List.of(userRole, adminRole));
@@ -334,7 +336,7 @@ public class InitDataController {
         u1.setNickName(d.getName() + "负责人");
         u1.setDepartment(d);
         u1.setPosition(mgr);
-        u1.setPassword("123456");
+        u1.setPassword(MD5Util.encrypt("ringway123"));
         u1.setStatus("1"); // Assuming "1" is Normal or Enabled, verified from User.java string type
         u1.setCreateTime(new Date());
         u1.setRoles(Collections.singletonList(userRole));
@@ -345,7 +347,7 @@ public class InitDataController {
         u2.setNickName(d.getName() + "员工");
         u2.setDepartment(d);
         u2.setPosition(staff);
-        u2.setPassword("123456");
+        u2.setPassword(MD5Util.encrypt("ringway123"));
         u2.setStatus("1");
         u2.setCreateTime(new Date());
         u2.setRoles(Collections.singletonList(userRole));
@@ -598,7 +600,7 @@ public class InitDataController {
             row.createCell(1).setCellValue(u.getNickName());
             row.createCell(2).setCellValue(u.getDepartment() != null ? u.getDepartment().getName() : "");
             row.createCell(3).setCellValue(u.getPosition() != null ? u.getPosition().getName() : "");
-            row.createCell(4).setCellValue("123456");
+            row.createCell(4).setCellValue("ringway123");
         }
 
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

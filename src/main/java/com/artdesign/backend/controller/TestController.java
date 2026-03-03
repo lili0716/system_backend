@@ -36,10 +36,9 @@ public class TestController {
             result.put("code", 200);
             result.put("msg", "超级管理员账号初始化成功");
             result.put("data", Map.of(
-                "username", "SpuerAdmin",
-                "password", "123456",
-                "role", "超级管理员"
-            ));
+                    "username", "SpuerAdmin",
+                    "password", "ringway123",
+                    "role", "超级管理员"));
         } catch (Exception e) {
             System.err.println("初始化超级管理员账号失败: " + e.getMessage());
             e.printStackTrace();

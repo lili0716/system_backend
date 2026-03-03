@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
+import com.artdesign.backend.util.MD5Util;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -116,7 +117,7 @@ public class DataInitializer implements CommandLineRunner {
             }
             userRepository.save(superUser);
             // 密码存入 user_credentials 表
-            saveCredential("SpuerAdmin", "123456");
+            saveCredential("SpuerAdmin", MD5Util.encrypt("ringway123"));
 
             // 创建管理员用户
             User adminUser = new User();
@@ -134,7 +135,7 @@ public class DataInitializer implements CommandLineRunner {
                 adminUser.setRoles(List.of(adminRole));
             }
             userRepository.save(adminUser);
-            saveCredential("Admin", "123456");
+            saveCredential("Admin", MD5Util.encrypt("ringway123"));
 
             // 创建普通用户
             User normalUser = new User();
@@ -152,7 +153,7 @@ public class DataInitializer implements CommandLineRunner {
                 normalUser.setRoles(List.of(userRole));
             }
             userRepository.save(normalUser);
-            saveCredential("20952", "123456");
+            saveCredential("20952", MD5Util.encrypt("ringway123"));
 
             System.out.println("用户初始化完成");
         }

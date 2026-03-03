@@ -179,6 +179,18 @@ public class RouteController {
                 meta.put("roles", r.getMeta().getRoles());
                 meta.put("fixedTab", r.getMeta().getFixedTab());
                 meta.put("sort", r.getMeta().getSort()); // 顺便把 sort 也返回给前端，方便前端调试或使用
+                if (r.getMeta().getIsHide() != null) {
+                    meta.put("isHide", r.getMeta().getIsHide());
+                }
+                if (r.getMeta().getIsHideTab() != null) {
+                    meta.put("isHideTab", r.getMeta().getIsHideTab());
+                }
+                if (r.getMeta().getIsIframe() != null) {
+                    meta.put("isIframe", r.getMeta().getIsIframe());
+                }
+                if (r.getMeta().getLink() != null) {
+                    meta.put("link", r.getMeta().getLink());
+                }
                 map.put("meta", meta);
             }
 

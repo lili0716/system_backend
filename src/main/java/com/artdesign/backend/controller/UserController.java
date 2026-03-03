@@ -12,6 +12,7 @@ import com.artdesign.backend.entity.Salary;
 import com.artdesign.backend.dto.DataSyncDTO;
 import com.artdesign.backend.repository.UserCredentialRepository;
 import com.artdesign.backend.util.JwtUtil;
+import com.artdesign.backend.util.MD5Util;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,10 +46,10 @@ public class UserController {
 
     @Autowired
     private JwtUtil jwtUtil;
-    
+
     @Autowired
     private DataSyncService dataSyncService;
-    
+
     @Autowired
     private SalaryService salaryService;
 
@@ -89,7 +90,7 @@ public class UserController {
             }
 
             // Check password
-            if (storedPassword == null || !password.equals(storedPassword)) {
+            if (storedPassword == null || !MD5Util.encrypt(password).equals(storedPassword)) {
                 Map<String, Object> result = new HashMap<>();
                 result.put("code", 401);
                 result.put("msg", "工号或密码错误");
@@ -178,6 +179,9 @@ public class UserController {
             data.put("userName", user.getNickName());
             data.put("employeeId", user.getEmployeeId());
             data.put("email", user.getEmail());
+            data.put("userPhone", user.getUserPhone());
+            data.put("userGender", user.getUserGender());
+            data.put("remark", user.getRemark());
             data.put("avatar", user.getAvatar());
 
             // 获取并增加考勤规则信息
@@ -204,6 +208,90 @@ public class UserController {
             result.put("msg", "获取用户信息失败: " + e.getMessage());
             return result;
         }
+    }
+
+    // 更新个人资料及密码接口
+    @PutMapping("/user/profile")
+    public Map<String, Object> updateProfile(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody Map<String, Object> params) {
+        System.out.println("Update profile request received: " + params);
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // 解析用户工号
+            String employeeId = null;
+            if (token != null) {
+                employeeId = jwtUtil.getEmployeeId(token);
+            }
+
+            if (employeeId == null) {
+                result.put("code", 401);
+                result.put("msg", "Token 无效或已过期");
+                return result;
+            }
+
+            User user = userService.findByEmployeeId(employeeId);
+            if (user == null) {
+                result.put("code", 404);
+                result.put("msg", "用户不存在");
+                return result;
+            }
+
+            // 更新密码逻辑（如果提交了 password 和 newPassword）
+            if (params.containsKey("password") && params.containsKey("newPassword")) {
+                String oldPwd = params.get("password").toString();
+                String newPwd = params.get("newPassword").toString();
+
+                UserCredential credential = userCredentialRepository.findByEmployeeId(employeeId);
+                String storedPassword = credential != null ? credential.getPassword() : user.getPassword();
+
+                if (storedPassword == null || !storedPassword.equals(MD5Util.encrypt(oldPwd))) {
+                    result.put("code", 400);
+                    result.put("msg", "原密码错误");
+                    return result;
+                }
+
+                if (credential != null) {
+                    credential.setPassword(MD5Util.encrypt(newPwd));
+                    userCredentialRepository.save(credential);
+                } else {
+                    userCredentialRepository.save(new UserCredential(employeeId, MD5Util.encrypt(newPwd)));
+                }
+
+                // 如果只改密码，可直接返回
+                if (params.size() <= 3) {
+                    result.put("code", 200);
+                    result.put("msg", "密码修改成功");
+                    return result;
+                }
+            }
+
+            // 更新基本资料逻辑
+            if (params.containsKey("nickName"))
+                user.setNickName(params.get("nickName").toString());
+            if (params.containsKey("email"))
+                user.setEmail(params.get("email").toString());
+            if (params.containsKey("userPhone"))
+                user.setUserPhone(params.get("userPhone").toString());
+            if (params.containsKey("userGender"))
+                user.setUserGender(params.get("userGender").toString());
+            if (params.containsKey("remark"))
+                user.setRemark(params.get("remark").toString());
+
+            userService.save(user);
+
+            result.put("code", 200);
+            result.put("msg", "个人资料更新成功");
+            result.put("data", user);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("code", 500);
+            result.put("msg", "更新失败: " + e.getMessage());
+        }
+
+        return result;
     }
 
     // 获取用户列表接口
@@ -240,49 +328,49 @@ public class UserController {
         }
     }
 
-    // 获取职位列表接口
-    @GetMapping("/position/list")
-    public Map<String, Object> getPositionList() {
-        System.out.println("Get position list request received");
-
-        try {
-            List<Map<String, Object>> positions = new ArrayList<>();
-
-            Map<String, Object> position1 = new HashMap<>();
-            position1.put("id", 1L);
-            position1.put("name", "总经理");
-            position1.put("code", "GM");
-            position1.put("description", "公司总经理");
-            positions.add(position1);
-
-            Map<String, Object> position2 = new HashMap<>();
-            position2.put("id", 2L);
-            position2.put("name", "部门经理");
-            position2.put("code", "DM");
-            position2.put("description", "部门经理");
-            positions.add(position2);
-
-            Map<String, Object> position3 = new HashMap<>();
-            position3.put("id", 3L);
-            position3.put("name", "普通员工");
-            position3.put("code", "EE");
-            position3.put("description", "普通员工");
-            positions.add(position3);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("code", 200);
-            result.put("msg", "success");
-            result.put("data", positions);
-
-            return result;
-        } catch (Exception e) {
-            e.printStackTrace();
-            Map<String, Object> result = new HashMap<>();
-            result.put("code", 500);
-            result.put("msg", "获取职位列表失败");
-            return result;
-        }
-    }
+    // // 获取职位列表接口 (冲突注释 - 真实接口位于 PositionController 中)
+    // @GetMapping("/position/list")
+    // public Map<String, Object> getPositionList() {
+    // System.out.println("Get position list request received");
+    //
+    // try {
+    // List<Map<String, Object>> positions = new ArrayList<>();
+    //
+    // Map<String, Object> position1 = new HashMap<>();
+    // position1.put("id", 1L);
+    // position1.put("name", "总经理");
+    // position1.put("code", "GM");
+    // position1.put("description", "公司总经理");
+    // positions.add(position1);
+    //
+    // Map<String, Object> position2 = new HashMap<>();
+    // position2.put("id", 2L);
+    // position2.put("name", "部门经理");
+    // position2.put("code", "DM");
+    // position2.put("description", "部门经理");
+    // positions.add(position2);
+    //
+    // Map<String, Object> position3 = new HashMap<>();
+    // position3.put("id", 3L);
+    // position3.put("name", "普通员工");
+    // position3.put("code", "EE");
+    // position3.put("description", "普通员工");
+    // positions.add(position3);
+    //
+    // Map<String, Object> result = new HashMap<>();
+    // result.put("code", 200);
+    // result.put("msg", "success");
+    // result.put("data", positions);
+    //
+    // return result;
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // Map<String, Object> result = new HashMap<>();
+    // result.put("code", 500);
+    // result.put("msg", "获取职位列表失败");
+    // return result;
+    // }
+    // }
 
     @GetMapping("/users")
     public List<User> findAll() {
@@ -302,9 +390,9 @@ public class UserController {
         if (password != null && !password.isEmpty() && savedUser.getEmployeeId() != null) {
             UserCredential credential = userCredentialRepository.findByEmployeeId(savedUser.getEmployeeId());
             if (credential == null) {
-                credential = new UserCredential(savedUser.getEmployeeId(), password);
+                credential = new UserCredential(savedUser.getEmployeeId(), MD5Util.encrypt(password));
             } else {
-                credential.setPassword(password);
+                credential.setPassword(MD5Util.encrypt(password));
             }
             userCredentialRepository.save(credential);
         }
@@ -343,7 +431,7 @@ public class UserController {
             User user = userService.findById(id);
             if (user != null) {
                 System.out.println("User found: " + user.getNickName());
-                
+
                 // 查找或创建薪资信息
                 Salary userSalary = salaryService.findByUserId(id);
                 if (userSalary == null) {
@@ -353,13 +441,13 @@ public class UserController {
                     userSalary.setCreateBy("system");
                     userSalary.setCreateTime(new java.util.Date());
                 }
-                
+
                 // 更新薪资信息
                 userSalary.setAmount(salary);
                 userSalary.setCurrentSalary(salary);
                 userSalary.setUpdateBy("system");
                 userSalary.setUpdateTime(new java.util.Date());
-                
+
                 Salary savedSalary = salaryService.save(userSalary);
                 System.out.println("Salary saved. New salary: " + savedSalary.getAmount());
 
@@ -388,10 +476,10 @@ public class UserController {
         } catch (Exception e) {
             System.out.println("Error deleting salary: " + e.getMessage());
         }
-        
+
         // 删除用户
         userService.deleteById(id);
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("code", 200);
         result.put("msg", "success");
@@ -417,9 +505,10 @@ public class UserController {
         result.put("data", data);
         return result;
     }
-    
+
     /**
      * 数据同步接口
+     * 
      * @param syncDTO 数据同步配置
      * @return 同步结果
      */
@@ -427,9 +516,10 @@ public class UserController {
     public Map<String, Object> syncUsers(@RequestBody DataSyncDTO syncDTO) {
         return dataSyncService.syncEmployeeData(syncDTO);
     }
-    
+
     /**
      * 测试数据库连接接口
+     * 
      * @param syncDTO 数据库连接配置
      * @return 连接测试结果
      */

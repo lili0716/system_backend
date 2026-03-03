@@ -19,10 +19,13 @@ public class SalaryStatisticsController {
     private SalaryStatisticsService salaryStatisticsService;
 
     @GetMapping
-    public Result<List<SalaryStatisticsDTO>> getMonthlyStatistics(
+    public Result<org.springframework.data.domain.Page<SalaryStatisticsDTO>> getMonthlyStatistics(
             @RequestParam String month,
             @RequestParam(required = false) String employeeId,
-            @RequestParam(required = false) Long departmentId) {
-        return Result.success(salaryStatisticsService.calculateMonthlySalary(month, employeeId, departmentId));
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return Result.success(
+                salaryStatisticsService.calculateMonthlySalaryWithPage(month, employeeId, departmentId, page, size));
     }
 }

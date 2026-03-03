@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.List;
+import com.artdesign.backend.util.MD5Util;
 
 @Component
 public class SuperAdminInitializer {
@@ -64,7 +65,7 @@ public class SuperAdminInitializer {
             System.out.println("超级管理员用户创建成功: " + superUser.getId());
 
             // 3. 创建用户凭证（密码）
-            saveCredential("SuperAdmin", "123456");
+            saveCredential("SuperAdmin", MD5Util.encrypt("ringway123"));
         } else {
             System.out.println("超级管理员用户已存在: " + superUser.getId());
             // 确保角色正确
@@ -75,12 +76,12 @@ public class SuperAdminInitializer {
                 System.out.println("超级管理员用户角色更新成功");
             }
             // 确保密码正确
-            saveCredential("SuperAdmin", "123456");
+            saveCredential("SuperAdmin", MD5Util.encrypt("ringway123"));
         }
 
         System.out.println("超级管理员账号初始化完成！");
         System.out.println("账号: SuperAdmin");
-        System.out.println("密码: 123456");
+        System.out.println("密码: ringway123");
     }
 
     private void saveCredential(String employeeId, String password) {

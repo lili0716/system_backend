@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 @RestController
-@RequestMapping("/api/org")
+@RequestMapping("/org")
 public class OrganizationController {
 
     @Autowired

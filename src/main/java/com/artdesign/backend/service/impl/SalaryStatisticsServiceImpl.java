@@ -22,6 +22,10 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
 
 @Service
 public class SalaryStatisticsServiceImpl implements SalaryStatisticsService {
@@ -34,7 +38,7 @@ public class SalaryStatisticsServiceImpl implements SalaryStatisticsService {
 
     @Autowired
     private LeaveFormRepository leaveFormRepository;
-    
+
     @Autowired
     private SalaryService salaryService;
 
@@ -220,5 +224,156 @@ public class SalaryStatisticsServiceImpl implements SalaryStatisticsService {
         }
 
         return result;
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<SalaryStatisticsDTO> calculateMonthlySalaryWithPage(String monthStr,
+            String employeeId, Long departmentId, int page, int size) {
+        // Parse "YYYY-MM"
+        YearMonth yearMonth = YearMonth.parse(monthStr);
+        LocalDate startLocalDate = yearMonth.atDay(1);
+        LocalDate endLocalDate = yearMonth.atEndOfMonth();
+
+        Date startDate = Date.from(startLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date endDate = Date.from(endLocalDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
+
+        Pageable pageable = PageRequest.of(page - 1, size);
+        Page<User> userPage;
+
+        if (StringUtils.hasText(employeeId)) {
+            User user = userRepository.findByEmployeeId(employeeId);
+            List<User> userList = user != null ? List.of(user) : new ArrayList<>();
+            userPage = new PageImpl<>(userList, pageable, userList.size());
+        } else if (departmentId != null) {
+            // Spring Data JPA custom methods can support Pageable if we rewrite, but for
+            // simplicity here if it breaks, we just manual page,
+            // actually since we need a page we should rely on a query that supports it or
+            // just use memory page for this demo.
+            // Let's use memory slicing for department search temporarily if repository
+            // misses pageable signature
+            List<User> list = userRepository.findByDepartmentId(departmentId);
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), list.size());
+            List<User> subList = start > list.size() ? new ArrayList<>() : list.subList(start, end);
+            userPage = new PageImpl<>(subList, pageable, list.size());
+        } else {
+            userPage = userRepository.findAll(pageable);
+        }
+
+        List<SalaryStatisticsDTO> result = new ArrayList<>();
+
+        for (User user : userPage.getContent()) {
+            SalaryStatisticsDTO dto = new SalaryStatisticsDTO();
+            dto.setUserId(user.getId());
+            dto.setUserName(user.getNickName() != null ? user.getNickName() : user.getEmail());
+            dto.setDepartmentName(user.getDepartment() != null ? user.getDepartment().getName() : "");
+            dto.setEmployeeId(user.getEmployeeId());
+            dto.setMonth(monthStr);
+
+            BigDecimal basicSalary = BigDecimal.ZERO;
+            try {
+                Salary userSalary = salaryService.findByUserId(user.getId());
+                if (userSalary != null && StringUtils.hasText(userSalary.getCurrentSalary())) {
+                    basicSalary = new BigDecimal(userSalary.getCurrentSalary());
+                }
+            } catch (Exception e) {
+            }
+            dto.setBasicSalary(basicSalary);
+
+            BigDecimal hourlyWage = basicSalary.divide(new BigDecimal(30), 10, RoundingMode.HALF_UP)
+                    .divide(new BigDecimal(8), 2, RoundingMode.HALF_UP);
+            dto.setHourlyWage(hourlyWage);
+
+            List<AttendanceRecord> records = attendanceRecordRepository.findByUserIdAndRecordDateBetween(user.getId(),
+                    startDate, endDate);
+
+            double actualDays = 0;
+            double weekdayOvertime = 0;
+            double weekendOvertime = 0;
+            int mealCount = 0;
+
+            for (AttendanceRecord record : records) {
+                if (record.getStatus() != null && record.getStatus() != 3) {
+                    actualDays += 1;
+                }
+                Double otHours = record.getOvertimeHours() != null ? record.getOvertimeHours() : 0.0;
+                Integer day = record.getDayOfWeek();
+                boolean isWeekend = (day != null && (day == 6 || day == 7));
+
+                if (otHours > 0) {
+                    if (isWeekend) {
+                        weekendOvertime += otHours;
+                        if (otHours >= 6)
+                            mealCount++;
+                    } else {
+                        weekdayOvertime += otHours;
+                        if (otHours >= 2)
+                            mealCount++;
+                    }
+                }
+                if (!isWeekend && record.getStatus() != null && record.getStatus() != 3
+                        && record.getActualWorkHours() != null && record.getActualWorkHours() > 0) {
+                    mealCount++;
+                }
+            }
+
+            dto.setActualAttendanceDays(actualDays);
+            dto.setWeekdayOvertimeHours(weekdayOvertime);
+            dto.setWeekendOvertimeHours(weekendOvertime);
+            dto.setMealCount(mealCount);
+
+            List<LeaveForm> leaves = leaveFormRepository.findApprovedLeavesByUserIdAndDateRange(user.getId(), 1,
+                    startDate, endDate);
+            double sickHours = 0;
+            double personalHours = 0;
+
+            for (LeaveForm leave : leaves) {
+                Integer type = leave.getLeaveType();
+                Double days = leave.getLeaveDays() != null ? leave.getLeaveDays() : 0.0;
+                double hours = days * 8;
+                if (type != null) {
+                    if (type == 2)
+                        sickHours += hours;
+                    else if (type == 1)
+                        personalHours += hours;
+                }
+            }
+
+            dto.setSickLeaveHours(sickHours);
+            dto.setPersonalLeaveHours(personalHours);
+
+            BigDecimal sickDed = hourlyWage.multiply(BigDecimal.valueOf(sickHours))
+                    .multiply(new BigDecimal("0.2")).setScale(2, RoundingMode.HALF_UP);
+            dto.setSickLeaveDeduction(sickDed);
+
+            BigDecimal personalDed = hourlyWage.multiply(BigDecimal.valueOf(personalHours))
+                    .setScale(2, RoundingMode.HALF_UP);
+            dto.setPersonalLeaveDeduction(personalDed);
+
+            BigDecimal weekSub = BigDecimal.valueOf(weekdayOvertime).multiply(new BigDecimal("20"))
+                    .setScale(2, RoundingMode.HALF_UP);
+            dto.setWeekdayOvertimeSubsidy(weekSub);
+
+            BigDecimal weekendSub = BigDecimal.valueOf(weekendOvertime)
+                    .multiply(new BigDecimal("110").divide(new BigDecimal("8"), 4, RoundingMode.HALF_UP))
+                    .setScale(2, RoundingMode.HALF_UP);
+            dto.setWeekendOvertimeSubsidy(weekendSub);
+
+            BigDecimal mealSub = BigDecimal.valueOf(mealCount).multiply(new BigDecimal("6"))
+                    .setScale(2, RoundingMode.HALF_UP);
+            dto.setMealSubsidy(mealSub);
+
+            BigDecimal gross = basicSalary.add(weekSub).add(weekendSub).add(mealSub)
+                    .subtract(sickDed).subtract(personalDed)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            if (gross.compareTo(BigDecimal.ZERO) < 0) {
+                gross = BigDecimal.ZERO;
+            }
+            dto.setGrossSalary(gross);
+            result.add(dto);
+        }
+
+        return new PageImpl<>(result, pageable, userPage.getTotalElements());
     }
 }

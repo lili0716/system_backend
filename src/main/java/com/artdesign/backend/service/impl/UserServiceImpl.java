@@ -9,8 +9,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import com.artdesign.backend.service.SalaryService;
 
 import java.util.List;
+import com.artdesign.backend.util.MD5Util;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.util.Date;
@@ -23,6 +25,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private SalaryService salaryService;
 
     @Override
     public List<User> findAll() {
@@ -153,7 +158,7 @@ public class UserServiceImpl implements UserService {
                 userMap.put("updateTime", user.getUpdateTime());
                 userMap.put("remark", user.getRemark());
                 userMap.put("idCard", user.getIdCard());
-                
+
                 // 避免直接关联查询，只返回部门ID和名称
                 if (user.getDepartment() != null) {
                     userMap.put("departmentId", user.getDepartment().getId());
@@ -167,6 +172,18 @@ public class UserServiceImpl implements UserService {
                     userMap.put("tenure", String.format("%.1f", years));
                 } else {
                     userMap.put("tenure", "0.0");
+                }
+
+                // 获取薪水数据
+                try {
+                    com.artdesign.backend.entity.Salary userSalary = salaryService.findByUserId(user.getId());
+                    if (userSalary != null) {
+                        userMap.put("salary", userSalary.getCurrentSalary());
+                    } else {
+                        userMap.put("salary", null);
+                    }
+                } catch (Exception e) {
+                    userMap.put("salary", null);
                 }
 
                 userList.add(userMap);
@@ -199,7 +216,7 @@ public class UserServiceImpl implements UserService {
         // 创建默认用户 - 简化版本
         User admin = new User();
         admin.setEmployeeId("20950");
-        admin.setPassword("123456");
+        admin.setPassword(MD5Util.encrypt("ringway123"));
         admin.setEmail("20950@example.com");
         admin.setNickName("超级管理员");
         admin.setUserPhone("13800138000");
@@ -214,7 +231,7 @@ public class UserServiceImpl implements UserService {
 
         User user1 = new User();
         user1.setEmployeeId("20952");
-        user1.setPassword("123456");
+        user1.setPassword(MD5Util.encrypt("ringway123"));
         user1.setEmail("20952@example.com");
         user1.setNickName("普通用户");
         user1.setUserPhone("13800138002");
